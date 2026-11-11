@@ -1,0 +1,31 @@
+# ---- Android / Gradle ----
+.gradle/
+build/
+app/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+release/
+out/
+
+# ---- 签名文件（绝对不要入库）----
+*.jks
+*.keystore
+!debug.keystore
+keystore.properties
+
+# ---- IDE ----
+.idea/
+*.iml
+*.hprof
+.DS_Store
+Thumbs.db
+
+# ---- 运行时数据 ----
+rankings/
+*.log
