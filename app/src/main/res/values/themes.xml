@@ -14,4 +14,11 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
     </style>
+
+    <!-- 游戏页：全屏沉浸，内容由 SurfaceView 自绘 -->
+    <style name="Theme.AircraftWar.Fullscreen" parent="Theme.AircraftWar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>
