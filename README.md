@@ -62,15 +62,25 @@ aircraftwar-android/
 
 ## 本地开发环境
 
-> ⚠️ **当前开发机尚未安装 Android 工具链**（未检测到 Android Studio / Android SDK / Gradle / adb）。
-> 代码可以编写与版本管理，但**编译、安装、运行、调试必须先在装了 Android Studio 的机器上完成**。
+> 📍 **仓库必须放在纯 ASCII 路径下**，当前位于 `L:\android-projects\AircraftWar-Android`。
+> 放在中文目录时，AGP 会拒绝构建；即使加开关绕过检查，单元测试也会因
+> `ClassNotFoundException` 失败（已实测复现）。详见 [构建环境说明](docs/04-构建环境说明.md)。
 
-需要准备：
+> ✅ **本机工具链已装齐并验证通过**：Android Studio 2025.3.1（Panda）+ 自带 JBR 21.0.9、
+> Android SDK（platform 35 / build-tools 35）、Gradle 8.11.1。
+> `assembleDebug` 与 `testDebugUnitTest` 均已实际跑通。
 
-1. **Android Studio**（课程推荐版本：Android Studio Panda）— 自带 JDK 与 Gradle
-2. **Android SDK**：`compileSdk 35`、`minSdk 24`（Android 7.0）、`targetSdk 35`
-3. **JDK 17**（AGP 8.x 要求；Android Studio 自带 JBR 即可）
-4. 一台真机（开启 USB 调试）或 AVD 模拟器
+命令行构建：
+
+```powershell
+$env:JAVA_HOME = "L:\android-toolchain\android-studio\jbr"
+cd L:\android-projects\AircraftWar-Android
+& "L:\android-toolchain\gradle-8.11.1\bin\gradle.bat" assembleDebug --console=plain
+& "L:\android-toolchain\gradle-8.11.1\bin\gradle.bat" testDebugUnitTest --console=plain
+```
+
+尚未安装：模拟器与系统镜像（有真机则不必）。真机调试需在手机上开启「开发者选项 → USB 调试」，
+连上后 `adb devices` 确认。
 
 ## 文档索引
 
