@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">飞机大战</string>
     <string name="loading">加载中…</string>
+    <string name="skin_title">皮肤选择</string>
 </resources>

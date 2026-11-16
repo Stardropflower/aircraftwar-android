@@ -39,6 +39,16 @@ public class GameRenderer {
     private static final int DANGER = 0xFFFF5C6C;
     private static final int PANEL_BG = 0xB4080C12;
 
+    /** 背包格的几何参数：绘制与点击判定共用，避免两处各写一套导致错位 */
+    private static final float SLOT = 46;
+    private static final float GAP = 8;
+    private static final float SLOT_TOP = 12;
+
+    /** 战场宽度是运行期配置的，所以右边界不能写成 static final */
+    private static float backpackRight() {
+        return PlayField.width() - 12;
+    }
+
     private final Assets assets;
     private final Paint bitmapPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -194,29 +204,43 @@ public class GameRenderer {
     }
 
     private void drawBackpack(Canvas canvas, GameWorld world) {
-        float slot = 46, gap = 8, top = 12;
-        float right = PlayField.width() - 12;
+        List<Item> items = world.getBackpack(0);
 
         for (int k = 0; k < GameWorld.BACKPACK_CAPACITY; k++) {
-            float x = right - slot - k * (slot + gap);
-            List<Item> items = world.getBackpack(0);
+            float x = backpackRight() - SLOT - k * (SLOT + GAP);
             // 栈顶（最后拾取）会先被使用 —— 它在最右格（k=0）
             int index = items.size() - 1 - k;
             boolean nextToUse = index >= 0 && index == items.size() - 1;
 
-            drawPanel(canvas, x, top, slot, slot, 11,
+            drawPanel(canvas, x, SLOT_TOP, SLOT, SLOT, 11,
                     nextToUse ? 0xA51B6FA8 : 0x96080C12,
                     nextToUse ? ACCENT : BORDER);
 
             if (index >= 0 && index < items.size()) {
                 Bitmap bmp = assets.bitmapFor(items.get(index));
                 if (bmp != null) {
-                    dst.set(x + 7, top + 7, x + slot - 7, top + slot - 7);
+                    dst.set(x + 7, SLOT_TOP + 7, x + SLOT - 7, SLOT_TOP + SLOT - 7);
                     src.set(0, 0, bmp.getWidth(), bmp.getHeight());
                     canvas.drawBitmap(bmp, src, dst, bitmapPaint);
                 }
             }
         }
+
+        // 有道具时才提示「点击使用」，空背包不用提示
+        if (!items.isEmpty()) {
+            textPaint.setTextAlign(Paint.Align.RIGHT);
+            textPaint.setTextSize(10);
+            textPaint.setColor(ACCENT);
+            canvas.drawText("点击使用", backpackRight(), SLOT_TOP + SLOT + 14, textPaint);
+            textPaint.setTextAlign(Paint.Align.LEFT);
+        }
+    }
+
+    /** 背包两格所在区域（逻辑坐标），供触屏判定「点的是 UI 不是战场」 */
+    public static RectF backpackArea() {
+        float right = backpackRight();
+        float left = right - SLOT * 2 - GAP;
+        return new RectF(left - 6, SLOT_TOP - 6, right + 6, SLOT_TOP + SLOT + 20);
     }
 
     private void drawDifficultyChip(Canvas canvas, GameWorld world) {

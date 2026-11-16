@@ -14,6 +14,14 @@ public final class PlayField {
     /** 默认值沿用 Windows 版的 512x768，保证迁移前后行为一致 */
     private static volatile int width = 512;
     private static volatile int height = 768;
+    /**
+     * 顶部禁止英雄机进入的高度（逻辑单位）。
+     * <p>
+     * 手机端顶部有得分卡、难度胶囊、背包格这些 UI，如果英雄机还能飘上去，
+     * 既会挡住 UI，手指也会和「点击背包格」这个操作冲突。
+     * 默认 0（桌面版没有这个需求），Android 端由 GameActivity 设置。
+     */
+    private static volatile int topInset = 0;
 
     private PlayField() {
     }
@@ -34,9 +42,18 @@ public final class PlayField {
         return height;
     }
 
+    public static void setTopInset(int inset) {
+        topInset = Math.max(0, inset);
+    }
+
+    public static int topInset() {
+        return topInset;
+    }
+
     /** 仅用于测试：恢复成 Windows 版默认尺寸 */
     public static void resetToDefault() {
         width = 512;
         height = 768;
+        topInset = 0;
     }
 }

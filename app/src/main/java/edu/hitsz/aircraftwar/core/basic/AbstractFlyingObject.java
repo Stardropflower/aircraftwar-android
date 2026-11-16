@@ -108,7 +108,7 @@ public abstract class AbstractFlyingObject {
     public void moveTo(double x, double y) {
         setLocation(
                 Math.max(0, Math.min(PlayField.width(), x)),
-                Math.max(0, Math.min(PlayField.height(), y)));
+                Math.max(PlayField.topInset(), Math.min(PlayField.height(), y)));
     }
 
     public int getSpeedX() {

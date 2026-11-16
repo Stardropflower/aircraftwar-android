@@ -51,6 +51,10 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     private final int[] pointerOwner = {-1, -1};
 
     private long lastTouchDownMs = 0;
+    /** 主线程投递、由渲染线程在下一个逻辑步消费的「使用背包道具」请求 */
+    private volatile boolean pendingBackpackUse = false;
+    /** 本次触摸是否落在 UI 元素上（背包、暂停按钮），用于区分「点 UI」和「点战场」 */
+    private boolean uiTouch = false;
 
     public GameSurfaceView(Context context, GameWorld world, Assets assets) {
         super(context);
@@ -101,6 +105,10 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     /** Activity 的 onPause/onResume 调用 */
     public void setPaused(boolean paused) {
         this.paused = paused;
+        if (paused) {
+            // 暂停时丢弃未消费的道具使用请求，避免恢复后突然用掉一个道具
+            pendingBackpackUse = false;
+        }
     }
 
     public boolean isPaused() {
@@ -175,6 +183,13 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
 
     /** 把主线程记录的目标坐标应用到英雄机 */
     private void applyInput() {
+        // 背包使用请求也在这里消费：背包是核心层的列表，渲染线程正在遍历它，
+        // 如果在主线程直接调用 useBackpackItem 会一边遍历一边改，抛 ConcurrentModificationException
+        if (pendingBackpackUse) {
+            pendingBackpackUse = false;
+            world.useBackpackItem(0);
+        }
+
         for (int p = 0; p < world.getPlayerCount(); p++) {
             if (hasTarget[p]) {
                 world.getHero(p).moveTo(targetX[p], targetY[p]);
@@ -193,13 +208,26 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
 
         int action = event.getActionMasked();
 
-        // 暂停按钮：只在按下时判定，且不把英雄机往那儿带
         if (action == MotionEvent.ACTION_DOWN) {
-            RectF pauseRect = GameRenderer.pauseButtonBounds();
-            if (pauseRect.contains(event.getX() / scale, event.getY() / scale)) {
+            uiTouch = false;
+            float lx = event.getX() / scale;
+            float ly = event.getY() / scale;
+
+            // 暂停按钮：只切暂停，不把英雄机带过去
+            if (GameRenderer.pauseButtonBounds().contains(lx, ly)) {
+                uiTouch = true;
                 togglePause();
                 return true;
             }
+
+            // 背包区域：点一下使用最顶上那个道具（栈顶 = 最后捡到的）
+            // 注意只是「投递请求」，真正的使用发生在渲染线程的逻辑步里
+            if (!paused && GameRenderer.backpackArea().contains(lx, ly)) {
+                uiTouch = true;
+                pendingBackpackUse = true;
+                return true;
+            }
+
             lastTouchDownMs = System.currentTimeMillis();
         }
 
@@ -229,8 +257,8 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
                         hasTarget[p] = false;
                     }
                 }
-                // 暂停状态下点一下画面继续
-                if (action == MotionEvent.ACTION_UP && paused
+                // 暂停状态下点一下空白画面继续（点在 UI 上不算）
+                if (action == MotionEvent.ACTION_UP && !uiTouch && paused
                         && System.currentTimeMillis() - lastTouchDownMs < 300) {
                     paused = false;
                 }

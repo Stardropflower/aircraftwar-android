@@ -1,4 +1,4 @@
-# 飞机大战 · Android 版（AircraftWar-Android）
+﻿# 飞机大战 · Android 版（AircraftWar-Android）
 
 > 《软件构造实践》第二学期实验项目 —— 把 Windows 版飞机大战迁移到 Android，并在其上增加网络对战等功能。
 >
@@ -32,9 +32,9 @@
 
 已在 **Android 15 模拟器（1080×2400）** 上实际运行验证：
 
-| 主界面 | 游戏内 | 暂停 |
+| 主界面 | 游戏内（含背包） | 皮肤选择 |
 |---|---|---|
-| ![菜单](docs/screenshots/menu.png) | ![游戏](docs/screenshots/gameplay.png) | ![暂停](docs/screenshots/paused.png) |
+| ![菜单](docs/screenshots/menu.png) | ![游戏](docs/screenshots/gameplay.png) | ![皮肤](docs/screenshots/skins.png) |
 
 已完成：
 
@@ -42,12 +42,19 @@
   （Boss/炸弹/冰冻/背包/双人归属等规则与 Windows 版一致）
 - **M2 渲染与主循环**：`SurfaceView` + 独立渲染线程，逻辑 25Hz + 渲染 60fps 插值；
   触屏拖动控制、暂停按钮、HUD（得分/血条/道具格/难度）、结算弹窗
-- 资源加载：`assets/` 25 张图 + 7 段音频，`BitmapFactory` 解码，类名→位图用 `instanceof` 映射
+- **M3 界面、音效与皮肤**：
+  - 音频：`SoundPool` 放命中/拾取/炸弹/结束音效，`MediaPlayer` 放 BGM，
+    Boss 出现自动切曲，切后台自动暂停，进入游戏页释放资源
+  - 背包：点右上角道具格使用（最右格高亮＝下次会用这个），
+    英雄机被限制不能进入顶部 UI 区，避免与点击冲突
+  - 皮肤：7 款皮肤按本机各难度最高分解锁，选中立即生效并持久化
+  - 存档：最高分与皮肤用 `SharedPreferences` 保存，结算时提示是否刷新纪录
 
 已验证：编译通过、安装运行无崩溃（logcat 无 AndroidRuntime 异常）、
-菜单 → 对局 → 暂停 → 结算 全流程可用。
+菜单 → 对局 → 暂停 → 背包点击使用 → 结算 → 皮肤选择 全流程可用；
+音频加载无错误日志；22 项单元测试在改动后仍全部通过。
 
-待完成：菜单/皮肤/排行榜界面（M3–M4）、音效播放、网络对战（M5）。
+待完成：排行榜（暂缓）、网络对战（M5）、双人同屏界面（M6）。
 
 ## 技术选型
 

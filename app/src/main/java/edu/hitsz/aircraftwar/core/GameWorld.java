@@ -66,6 +66,10 @@ public abstract class GameWorld implements GameEventObserver {
         default void onItemPicked(Item item, HeroAircraft hero) {
         }
 
+        /** 玩家主动点背包使用道具时触发（与「拾取」区分，便于播放不同的音效） */
+        default void onBackpackItemUsed(Item item, HeroAircraft hero) {
+        }
+
         default void onHeroDamaged(HeroAircraft hero, int damage) {
         }
 
@@ -594,7 +598,9 @@ public abstract class GameWorld implements GameEventObserver {
             return null;
         }
         Item item = backpack.pop();
-        item.effect(heroes.get(playerIndex));
+        HeroAircraft hero = heroes.get(playerIndex);
+        item.effect(hero);
+        listener.onBackpackItemUsed(item, hero);
         return item;
     }
 

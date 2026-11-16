@@ -26,6 +26,13 @@
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:theme="@style/Theme.AircraftWar.Fullscreen" />
 
+        <activity
+            android:name=".ui.SkinActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:label="@string/skin_title"
+            android:parentActivityName=".ui.MainActivity" />
+
     </application>
 
 </manifest>
