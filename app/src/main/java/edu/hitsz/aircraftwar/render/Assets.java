@@ -1,10 +1,11 @@
 package edu.hitsz.aircraftwar.render;
 
 import android.content.Context;
-import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
+import edu.hitsz.aircraftwar.R;
 import edu.hitsz.aircraftwar.core.aircraft.HeroAircraft;
 import edu.hitsz.aircraftwar.core.aircraft.enemy.BossEnemy;
 import edu.hitsz.aircraftwar.core.aircraft.enemy.EliteEnemy;
@@ -21,56 +22,72 @@ import edu.hitsz.aircraftwar.core.item.FreezeItem;
 import edu.hitsz.aircraftwar.core.item.SuperFireItem;
 import edu.hitsz.aircraftwar.core.sprite.SpriteMetrics;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 资源仓库：把 assets 里的图片解码成 {@link Bitmap}，并承担「实体 → 位图」的映射。
+ * 资源仓库：把 drawable 里的图片解码成 {@link Bitmap}，并承担「实体 → 位图」的映射。
  * <p>
- * 核心层不持有任何图像（它只有 {@code SpriteMetrics} 拿到的宽高），
+ * 按课程实验二的要求，图片资源全部走 <b>res/drawable + BitmapFactory.decodeResource</b>
+ * （而不是 Windows 版的 {@code ImageIO.read}，也不是 assets）。
+ * <p>
+ * 两个细节：
+ * <ol>
+ *   <li>图片放在 <b>drawable-nodpi</b> 目录。游戏精灵图绝不能被系统按屏幕密度缩放，
+ *       否则同一张 100×83 的飞机在高密度屏上会被放大 2~3 倍，
+ *       而核心层用图片宽高做碰撞判定，碰撞框就全错了。
+ *       解码时再额外设 {@code inScaled = false} 做双保险。</li>
+ *   <li>映射用 {@code instanceof} 而不是「类名 → 图片」的字符串表：
+ *       Android 上 R8 可能混淆类名，靠字符串匹配在 release 包里会静默失效。</li>
+ * </ol>
+ * <p>
+ * 核心层不持有任何图像（它只有 {@link SpriteMetrics} 拿到的宽高），
  * 图像完全由这一层负责 —— 这是把逻辑与平台解耦的直接收益：
  * 核心层能在 JVM 上单测，渲染层则独占 Android 的图像 API。
- * <p>
- * 映射用 {@code instanceof} 而不是原版的「类名 → 图片」字符串表：
- * Android 上 R8 可能混淆类名，靠字符串匹配在 release 包里会静默失效。
  */
 public final class Assets implements SpriteMetrics {
+
+    private final Resources resources;
+    /** 关闭按屏幕密度缩放，保证拿到的是图片原始像素尺寸 */
+    private final BitmapFactory.Options options = new BitmapFactory.Options();
 
     private final Map<String, Bitmap> images = new HashMap<>();
     private final Map<HeroAircraft.Skin, Bitmap> heroSkins = new EnumMap<>(HeroAircraft.Skin.class);
     private final Map<Difficulty, Bitmap> backgrounds = new EnumMap<>(Difficulty.class);
 
-    private Assets() {
+    private Assets(Context context) {
+        this.resources = context.getApplicationContext().getResources();
+        this.options.inScaled = false;
     }
 
     public static Assets load(Context context) {
-        Assets assets = new Assets();
-        AssetManager am = context.getAssets();
-        // 实体图
-        assets.put(am, "mob", "images/mob.png");
-        assets.put(am, "elite", "images/elite.png");
-        assets.put(am, "elitePlus", "images/elitePlus.png");
-        assets.put(am, "elitePro", "images/elitePro.png");
-        assets.put(am, "boss", "images/boss.png");
-        assets.put(am, "bullet_hero", "images/bullet_hero.png");
-        assets.put(am, "bullet_enemy", "images/bullet_enemy.png");
-        assets.put(am, "prop_blood", "images/prop_blood.png");
-        assets.put(am, "prop_bomb", "images/prop_bomb.png");
-        assets.put(am, "prop_bullet", "images/prop_bullet.png");
-        assets.put(am, "prop_bulletPlus", "images/prop_bulletPlus.png");
-        assets.put(am, "prop_freeze", "images/prop_freeze.png");
+        Assets assets = new Assets(context);
+
+        // 敌机与子弹
+        assets.put("mob", R.drawable.mob);
+        assets.put("elite", R.drawable.elite);
+        assets.put("elitePlus", R.drawable.eliteplus);
+        assets.put("elitePro", R.drawable.elitepro);
+        assets.put("boss", R.drawable.boss);
+        assets.put("bullet_hero", R.drawable.bullet_hero);
+        assets.put("bullet_enemy", R.drawable.bullet_enemy);
+
+        // 道具
+        assets.put("prop_blood", R.drawable.prop_blood);
+        assets.put("prop_bomb", R.drawable.prop_bomb);
+        assets.put("prop_bullet", R.drawable.prop_bullet);
+        assets.put("prop_bulletPlus", R.drawable.prop_bulletplus);
+        assets.put("prop_freeze", R.drawable.prop_freeze);
 
         // 七款皮肤
-        assets.put(am, "hero_skin", "images/hero.png");
-        assets.put(am, "plane_silver", "images/plane_silver.png");
-        assets.put(am, "plane_jade", "images/plane_jade.png");
-        assets.put(am, "plane_golden", "images/plane_golden.png");
-        assets.put(am, "plane_crimson", "images/plane_crimson.png");
-        assets.put(am, "plane_manba", "images/plane_manba.png");
-        assets.put(am, "plane_obsidian", "images/plane_obsidian.png");
+        assets.put("hero_skin", R.drawable.hero);
+        assets.put("plane_silver", R.drawable.plane_silver);
+        assets.put("plane_jade", R.drawable.plane_jade);
+        assets.put("plane_golden", R.drawable.plane_golden);
+        assets.put("plane_crimson", R.drawable.plane_crimson);
+        assets.put("plane_manba", R.drawable.plane_manba);
+        assets.put("plane_obsidian", R.drawable.plane_obsidian);
 
         assets.heroSkins.put(HeroAircraft.Skin.HERO, assets.get("hero_skin"));
         assets.heroSkins.put(HeroAircraft.Skin.SILVER, assets.get("plane_silver"));
@@ -81,27 +98,27 @@ public final class Assets implements SpriteMetrics {
         assets.heroSkins.put(HeroAircraft.Skin.OBSIDIAN, assets.get("plane_obsidian"));
 
         // 三档难度的背景（沿用 Windows 版的对应关系）
-        assets.backgrounds.put(Difficulty.EASY, assets.loadOrNull(am, "images/bg3.jpg"));
-        assets.backgrounds.put(Difficulty.NORMAL, assets.loadOrNull(am, "images/bg.jpg"));
-        assets.backgrounds.put(Difficulty.HARD, assets.loadOrNull(am, "images/bg4.jpg"));
+        assets.putBackground(Difficulty.EASY, R.drawable.bg3);
+        assets.putBackground(Difficulty.NORMAL, R.drawable.bg);
+        assets.putBackground(Difficulty.HARD, R.drawable.bg4);
 
         assets.validate();
         return assets;
     }
 
-    private void put(AssetManager am, String key, String path) {
-        Bitmap bmp = loadOrNull(am, path);
+    private void put(String key, int resId) {
+        Bitmap bmp = BitmapFactory.decodeResource(resources, resId, options);
         if (bmp != null) {
             images.put(key, bmp);
+        } else {
+            System.err.println("资源解码失败: " + key);
         }
     }
 
-    private Bitmap loadOrNull(AssetManager am, String path) {
-        try (InputStream in = am.open(path)) {
-            return BitmapFactory.decodeStream(in);
-        } catch (IOException e) {
-            System.err.println("资源加载失败: " + path + " -> " + e.getMessage());
-            return null;
+    private void putBackground(Difficulty difficulty, int resId) {
+        Bitmap bmp = BitmapFactory.decodeResource(resources, resId, options);
+        if (bmp != null) {
+            backgrounds.put(difficulty, bmp);
         }
     }
 
@@ -118,6 +135,9 @@ public final class Assets implements SpriteMetrics {
             if (!images.containsKey(key)) {
                 throw new IllegalStateException("缺少必需的资源: " + key);
             }
+        }
+        if (backgrounds.isEmpty()) {
+            throw new IllegalStateException("缺少背景资源");
         }
     }
 
@@ -173,7 +193,7 @@ public final class Assets implements SpriteMetrics {
 
     public Bitmap background(Difficulty difficulty) {
         Bitmap bmp = backgrounds.get(difficulty);
-        return bmp != null ? bmp : images.get("hero_skin");
+        return bmp != null ? bmp : backgrounds.get(Difficulty.NORMAL);
     }
 
     // ---------------- SpriteMetrics（核心层向这里要宽高） ----------------
