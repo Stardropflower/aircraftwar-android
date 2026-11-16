@@ -20,5 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AircraftWar"
+// 课程实验二要求项目名为 AircraftWar2026
+rootProject.name = "AircraftWar2026"
 include ':app'
