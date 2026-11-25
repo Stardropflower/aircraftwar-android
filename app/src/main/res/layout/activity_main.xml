@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    主菜单布局（实验三「页面开发」的 XML 静态布局这条路线）。
+    对比原来在 MainActivity 里用 Java 代码动态 new 控件的写法，
+    XML 的好处是界面与逻辑分离，改布局不用动 Java 代码。
+
+    配色取自 res/values/colors.xml，与 Windows 版保持同一套深青主题。
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingTop="90dp"
+        android:paddingBottom="40dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="飞机大战"
+            android:textSize="42sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="28dp"
+            android:text="AIRCRAFT WAR · Android"
+            android:textSize="12sp"
+            android:textColor="@color/accent"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tv_best"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:textSize="13sp"
+            android:textColor="@color/text_muted"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btn_easy"
+            android:layout_width="260dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp"
+            android:text="简单 EASY"
+            android:textSize="17sp"
+            android:textAllCaps="false"
+            android:textColor="@color/success"
+            android:backgroundTint="@color/surface_hover" />
+
+        <Button
+            android:id="@+id/btn_normal"
+            android:layout_width="260dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp"
+            android:text="普通 NORMAL"
+            android:textSize="17sp"
+            android:textAllCaps="false"
+            android:textColor="@color/accent"
+            android:backgroundTint="@color/surface_hover" />
+
+        <Button
+            android:id="@+id/btn_hard"
+            android:layout_width="260dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp"
+            android:text="困难 HARD"
+            android:textSize="17sp"
+            android:textAllCaps="false"
+            android:textColor="@color/danger"
+            android:backgroundTint="@color/surface_hover" />
+
+        <TextView
+            android:id="@+id/tv_skin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:layout_marginBottom="10dp"
+            android:textSize="13sp"
+            android:textColor="@color/text_muted"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btn_skin"
+            android:layout_width="260dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="10dp"
+            android:text="皮肤选择"
+            android:textSize="15sp"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:backgroundTint="@color/surface_hover" />
+
+        <!-- 实验三实验内容第 3 条：音乐开关 -->
+        <Button
+            android:id="@+id/btn_music"
+            android:layout_width="260dp"
+            android:layout_height="48dp"
+            android:textSize="15sp"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:backgroundTint="@color/surface_hover" />
+
+    </LinearLayout>
+</ScrollView>

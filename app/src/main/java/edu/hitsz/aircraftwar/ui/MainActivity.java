@@ -1,28 +1,29 @@
 package edu.hitsz.aircraftwar.ui;
 
 import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.Typeface;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import edu.hitsz.aircraftwar.R;
 import edu.hitsz.aircraftwar.core.aircraft.HeroAircraft;
 import edu.hitsz.aircraftwar.core.data.Difficulty;
 import edu.hitsz.aircraftwar.data.LocalStore;
 
 /**
- * 入口页：选择难度、查看本机最高分、进入皮肤选择。
+ * 入口页：选择难度、查看本机最高分、进入皮肤选择、切换音乐开关。
+ * <p>
+ * 布局走 XML（{@code res/layout/activity_main.xml}），这是实验三讲的「静态布局」路线：
+ * 界面结构在 XML 里声明，Java 只负责找控件（{@code findViewById}）和绑事件（{@code setOnClickListener}）。
  */
 public class MainActivity extends AppCompatActivity {
 
     private LocalStore store;
     private TextView bestScoreLabel;
     private TextView skinLabel;
+    private Button musicButton;
     /**
      * 调试开关：启动时带上 {@code --ez debug_grant true} 可以让下一局开局自带两个道具，
      * 方便验证背包 UI 与「点击使用」。只在 DEBUG 包里生效，正式包忽略。
@@ -35,58 +36,22 @@ public class MainActivity extends AppCompatActivity {
         store = new LocalStore(this);
         debugGrant = getIntent() != null && getIntent().getBooleanExtra("debug_grant", false);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(0xFF0E1218);
-        root.setPadding(0, dp(90), 0, 0);
+        // ① 加载 XML 布局（实验三第 8 页：Activity 启动时系统调用 onCreate，
+        //    通过 setContentView() 加载布局资源）
+        setContentView(R.layout.activity_main);
 
-        TextView title = new TextView(this);
-        title.setText("飞机大战");
-        title.setTextSize(42);
-        title.setTextColor(0xFFE9EEF7);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setGravity(Gravity.CENTER);
-        root.addView(title);
+        // ② 找到布局里的控件
+        bestScoreLabel = findViewById(R.id.tv_best);
+        skinLabel = findViewById(R.id.tv_skin);
+        musicButton = findViewById(R.id.btn_music);
 
-        TextView subtitle = new TextView(this);
-        subtitle.setText("AIRCRAFT WAR · Android");
-        subtitle.setTextSize(12);
-        subtitle.setTextColor(0xFF3EC8FF);
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, dp(4), 0, dp(28));
-        root.addView(subtitle);
+        // ③ 基于监听的事件处理（实验三第 11 页）：给控件绑监听器
+        findViewById(R.id.btn_easy).setOnClickListener(v -> startGame(Difficulty.EASY));
+        findViewById(R.id.btn_normal).setOnClickListener(v -> startGame(Difficulty.NORMAL));
+        findViewById(R.id.btn_hard).setOnClickListener(v -> startGame(Difficulty.HARD));
+        findViewById(R.id.btn_skin).setOnClickListener(v -> openSkinPage());
+        musicButton.setOnClickListener(v -> toggleMusic());
 
-        bestScoreLabel = new TextView(this);
-        bestScoreLabel.setTextColor(0xFF8FA0B8);
-        bestScoreLabel.setTextSize(13);
-        bestScoreLabel.setGravity(Gravity.CENTER);
-        bestScoreLabel.setPadding(0, 0, 0, dp(24));
-        root.addView(bestScoreLabel);
-
-        root.addView(menuButton("简单 EASY", 0xFF46D39A, Difficulty.EASY));
-        root.addView(menuButton("普通 NORMAL", 0xFF3EC8FF, Difficulty.NORMAL));
-        root.addView(menuButton("困难 HARD", 0xFFFF5C6C, Difficulty.HARD));
-
-        skinLabel = new TextView(this);
-        skinLabel.setTextSize(13);
-        skinLabel.setTextColor(0xFF8FA0B8);
-        skinLabel.setGravity(Gravity.CENTER);
-        skinLabel.setPadding(0, dp(28), 0, dp(10));
-        root.addView(skinLabel);
-
-        Button skinButton = new Button(this);
-        skinButton.setText("皮肤选择");
-        skinButton.setTextSize(15);
-        skinButton.setAllCaps(false);
-        skinButton.setTextColor(0xFFE9EEF7);
-        skinButton.setBackgroundColor(Color.rgb(0x1F, 0x27, 0x34));
-        LinearLayout.LayoutParams skinParams = new LinearLayout.LayoutParams(dp(240), dp(48));
-        skinButton.setLayoutParams(skinParams);
-        skinButton.setOnClickListener(v -> startActivity(new Intent(this, SkinActivity.class)));
-        root.addView(skinButton);
-
-        setContentView(root);
         refreshLabels();
     }
 
@@ -99,6 +64,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /** 页面跳转 + 数据传递（实验三第 17 页：Intent + putExtra + startActivity） */
+    private void startGame(Difficulty difficulty) {
+        Intent intent = new Intent(this, GameActivity.class);
+        intent.putExtra(GameActivity.EXTRA_DIFFICULTY, difficulty.name());
+        if (debugGrant) {
+            intent.putExtra(GameActivity.EXTRA_DEBUG_GRANT, true);
+        }
+        startActivity(intent);
+    }
+
+    private void openSkinPage() {
+        startActivity(new Intent(this, SkinActivity.class));
+    }
+
+    /** 音乐开关（实验三实验内容第 3 条）：状态存进 SharedPreferences，进游戏时读取 */
+    private void toggleMusic() {
+        store.setMuted(!store.isMuted());
+        refreshLabels();
+    }
+
     private void refreshLabels() {
         int easy = store.getBestScore(Difficulty.EASY);
         int normal = store.getBestScore(Difficulty.NORMAL);
@@ -107,33 +92,8 @@ public class MainActivity extends AppCompatActivity {
 
         HeroAircraft.Skin skin = store.getSelectedSkin();
         skinLabel.setText("当前皮肤：" + skin.getDisplayName());
-    }
 
-    private Button menuButton(String label, int accentColor, Difficulty difficulty) {
-        Button button = new Button(this);
-        button.setText(label);
-        button.setTextSize(17);
-        button.setAllCaps(false);
-        // 文字用难度主题色，底色统一用深色面板
-        button.setTextColor(accentColor);
-        button.setBackgroundColor(Color.rgb(0x1F, 0x27, 0x34));
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(260), dp(54));
-        params.setMargins(0, dp(6), 0, dp(6));
-        button.setLayoutParams(params);
-
-        button.setOnClickListener(v -> {
-            Intent intent = new Intent(this, GameActivity.class);
-            intent.putExtra(GameActivity.EXTRA_DIFFICULTY, difficulty.name());
-            if (debugGrant) {
-                intent.putExtra(GameActivity.EXTRA_DEBUG_GRANT, true);
-            }
-            startActivity(intent);
-        });
-        return button;
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
+        boolean muted = store.isMuted();
+        musicButton.setText(muted ? "音乐音效：关闭" : "音乐音效：开启");
     }
 }
