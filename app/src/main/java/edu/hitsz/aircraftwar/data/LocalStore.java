@@ -26,6 +26,7 @@ public final class LocalStore {
     private static final String KEY_BEST_PREFIX = "best_";
     private static final String KEY_SKIN = "selected_skin";
     private static final String KEY_MUTED = "muted";
+    private static final String KEY_PLAYER_NAME = "player_name";
 
     private final SharedPreferences prefs;
 
@@ -84,6 +85,28 @@ public final class LocalStore {
 
     public void setSelectedSkin(HeroAircraft.Skin skin) {
         prefs.edit().putString(KEY_SKIN, skin.name()).apply();
+    }
+
+    // ---------------- 玩家昵称 ----------------
+
+    /** 默认昵称；排行榜的「姓名」列用它 */
+    public static final String DEFAULT_PLAYER_NAME = "玩家";
+
+    public String getPlayerName() {
+        String name = prefs.getString(KEY_PLAYER_NAME, null);
+        if (name == null || name.trim().isEmpty()) {
+            return DEFAULT_PLAYER_NAME;
+        }
+        return name;
+    }
+
+    public void setPlayerName(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        // 昵称过长会让排行榜行布局挤爆，限制 8 个字
+        if (trimmed.length() > 8) {
+            trimmed = trimmed.substring(0, 8);
+        }
+        prefs.edit().putString(KEY_PLAYER_NAME, trimmed).apply();
     }
 
     // ---------------- 静音开关 ----------------
