@@ -2,9 +2,13 @@ package edu.hitsz.aircraftwar.ui;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -31,6 +35,8 @@ import edu.hitsz.aircraftwar.data.LocalStore;
 import edu.hitsz.aircraftwar.render.Assets;
 import edu.hitsz.aircraftwar.render.GameSurfaceView;
 
+import java.lang.ref.WeakReference;
+
 /**
  * 游戏页：承载 {@link GameSurfaceView}，负责资源装载、音频、存档与生命周期。
  * <p>
@@ -49,6 +55,12 @@ public class GameActivity extends AppCompatActivity {
      * 英雄机不允许进这一条带，否则会挡住 UI，手指也会和「点背包格」冲突。
      */
     private static final int PLAY_TOP_INSET = 135;
+
+    /** 主线程 Handler 的消息类型（实验三第 31 页：用 msg.what 区分消息） */
+    private static final int MSG_GAME_OVER = 1;
+
+    /** 主线程 Handler：渲染线程结束游戏时用它把消息发回主线程 */
+    private final GameHandler handler = new GameHandler(this);
 
     private GameSurfaceView gameView;
     private GameWorld world;
@@ -201,22 +213,67 @@ public class GameActivity extends AppCompatActivity {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
 
+    /**
+     * 游戏结束：把分数装进 Message 发到主线程。
+     * <p>
+     * 这个回调来自渲染线程（{@code GameSurfaceView} 的 {@code run()}），
+     * 不能直接在这里弹对话框 —— 子线程操作 UI 会抛 {@code CalledFromWrongThreadException}。
+     * 所以按实验三第 28–32 页讲的 Handler 机制，把消息发到主线程的 Handler，
+     * 由 {@link GameHandler#handleMessage} 在主线程执行界面更新。
+     */
     private void onGameOver(int score) {
-        // 回调来自渲染线程，必须切回 UI 线程再做界面和存档
-        runOnUiThread(() -> {
-            if (isFinishing()) {
+        Message message = Message.obtain();
+        message.what = MSG_GAME_OVER;
+        message.arg1 = score;          // 用 arg1 携带分数，省去额外对象
+        handler.sendMessage(message);
+    }
+
+    /** 在主线程执行：写存档 + 弹结算框 */
+    private void showGameOverDialog(int score) {
+        boolean newRecord = store.submitScore(difficulty, score);
+        String message = "本局得分：" + score
+                + (newRecord ? "\n\n刷新了本机最高分！" : "");
+        new AlertDialog.Builder(this)
+                .setTitle("游戏结束")
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton("返回", (dialog, which) -> finish())
+                .show();
+    }
+
+    /**
+     * 主线程 Handler（实验三第 28–32 页）。
+     * <p>
+     * 两个细节：
+     * <ol>
+     *   <li>{@code super(Looper.getMainLooper())} —— 绑定到主线程的消息队列，
+     *       这样 handleMessage 一定在主线程执行；</li>
+     *   <li>写成静态内部类 + {@link WeakReference} —— 非静态内部类会隐式持有外部 Activity，
+     *       一旦消息队列里还有未处理的消息，Activity 就无法被回收（内存泄漏）。</li>
+     * </ol>
+     */
+    private static class GameHandler extends Handler {
+        private final WeakReference<GameActivity> activityRef;
+
+        GameHandler(GameActivity activity) {
+            super(Looper.getMainLooper());
+            this.activityRef = new WeakReference<>(activity);
+        }
+
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            GameActivity activity = activityRef.get();
+            if (activity == null || activity.isFinishing()) {
                 return;
             }
-            boolean newRecord = store.submitScore(difficulty, score);
-            String message = "本局得分：" + score
-                    + (newRecord ? "\n\n刷新了本机最高分！" : "");
-            new AlertDialog.Builder(this)
-                    .setTitle("游戏结束")
-                    .setMessage(message)
-                    .setCancelable(false)
-                    .setPositiveButton("返回", (dialog, which) -> finish())
-                    .show();
-        });
+            switch (msg.what) {
+                case MSG_GAME_OVER:
+                    activity.showGameOverDialog(msg.arg1);
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     @Override
@@ -243,6 +300,8 @@ public class GameActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        // 清掉还没处理的消息，避免 Handler 继续持有已销毁的 Activity
+        handler.removeCallbacksAndMessages(null);
         if (gameView != null) {
             gameView.shutdown();
         }
