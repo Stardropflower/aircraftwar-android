@@ -33,6 +33,14 @@
             android:label="@string/skin_title"
             android:parentActivityName=".ui.MainActivity" />
 
+        <!-- 实验四：排行榜页面（ListView + SQLite） -->
+        <activity
+            android:name=".ui.RankActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:label="@string/rank_title"
+            android:parentActivityName=".ui.MainActivity" />
+
     </application>
 
 </manifest>
