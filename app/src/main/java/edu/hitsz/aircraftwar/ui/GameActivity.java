@@ -1,13 +1,16 @@
 package edu.hitsz.aircraftwar.ui;
 
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
@@ -32,6 +35,8 @@ import edu.hitsz.aircraftwar.core.item.Item;
 import edu.hitsz.aircraftwar.core.sprite.SpriteMetricsHolder;
 import edu.hitsz.aircraftwar.core.world.PlayField;
 import edu.hitsz.aircraftwar.data.LocalStore;
+import edu.hitsz.aircraftwar.db.ScoreDao;
+import edu.hitsz.aircraftwar.db.ScoreRecord;
 import edu.hitsz.aircraftwar.render.Assets;
 import edu.hitsz.aircraftwar.render.GameSurfaceView;
 
@@ -67,6 +72,13 @@ public class GameActivity extends AppCompatActivity {
     private SoundManager sound;
     private LocalStore store;
     private Difficulty difficulty;
+    /** 排行榜数据访问（SQLite） */
+    private ScoreDao scoreDao;
+
+    /** 本局成绩是否已经结算过：防止「游戏结束」和「主动返回」重复写入 */
+    private boolean scoreSaved = false;
+    /** 本局是否刷新了本机最高分（用于结算提示） */
+    private boolean newRecord = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,8 +95,9 @@ public class GameActivity extends AppCompatActivity {
         configurePlayField();
         PlayField.setTopInset(PLAY_TOP_INSET);
 
-        // 3) 音频
+        // 3) 音频与本地存档
         store = new LocalStore(this);
+        scoreDao = new ScoreDao(this);
         sound = new SoundManager(this);
         sound.setMuted(store.isMuted());
 
@@ -109,9 +122,28 @@ public class GameActivity extends AppCompatActivity {
 
         // 5) 挂载渲染视图
         gameView = new GameSurfaceView(this, world, assets);
-        gameView.setCallback(this::onGameOver);
+        gameView.setCallback(new GameSurfaceView.Callback() {
+            @Override
+            public void onGameOver(int score) {
+                GameActivity.this.onGameOver(score);
+            }
+
+            @Override
+            public void onExitRequested() {
+                // 点返回键 / 暂停菜单里选返回：立刻结算本局再回主菜单
+                GameActivity.this.settleAndFinish();
+            }
+        });
         setContentView(gameView);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // 系统返回键也走「结算后返回」，避免直接把一局成绩丢掉
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                settleAndFinish();
+            }
+        });
     }
 
     /**
@@ -230,15 +262,60 @@ public class GameActivity extends AppCompatActivity {
 
     /** 在主线程执行：写存档 + 弹结算框 */
     private void showGameOverDialog(int score) {
-        boolean newRecord = store.submitScore(difficulty, score);
+        saveScore(score);
         String message = "本局得分：" + score
                 + (newRecord ? "\n\n刷新了本机最高分！" : "");
         new AlertDialog.Builder(this)
                 .setTitle("游戏结束")
                 .setMessage(message)
                 .setCancelable(false)
-                .setPositiveButton("返回", (dialog, which) -> finish())
+                .setNegativeButton("返回主菜单", (dialog, which) -> finish())
+                .setPositiveButton("查看排行榜", (dialog, which) -> openRankAndFinish())
                 .show();
+    }
+
+    /**
+     * 结算本局并返回主菜单（返回键 / 暂停菜单里选「返回主菜单」时调用）。
+     * <p>
+     * 「立刻结算」意味着不等飞机死掉，当前分数直接入库，
+     * 用 {@link #scoreSaved} 保证不会重复写入。
+     */
+    private void settleAndFinish() {
+        if (!isFinishing()) {
+            saveScore(world == null ? 0 : world.totalScore());
+        }
+        finish();
+    }
+
+    /**
+     * 把本局成绩写入两处：
+     * <ol>
+     *   <li>{@link LocalStore}：本机最高分（用于皮肤解锁与「是否刷新纪录」提示）；</li>
+     *   <li>SQLite 排行榜：{@link ScoreDao#insert} 写一条记录，供排行榜页面展示。</li>
+     * </ol>
+     * 重复调用只会生效一次。
+     */
+    private void saveScore(int score) {
+        if (scoreSaved) {
+            return;
+        }
+        scoreSaved = true;
+        newRecord = store.submitScore(difficulty, score);
+
+        ScoreRecord record = new ScoreRecord(
+                store.getPlayerName(), score, difficulty.name(), System.currentTimeMillis());
+        long id = scoreDao.insert(record);
+        if (id == -1) {
+            Log.w("GameActivity", "排行榜写入失败: " + score);
+        }
+    }
+
+    /** 打开排行榜页（带上本局难度），同时结束本页，避免返回时又回到结算框 */
+    private void openRankAndFinish() {
+        Intent intent = new Intent(this, RankActivity.class);
+        intent.putExtra(RankActivity.EXTRA_DIFFICULTY, difficulty.name());
+        startActivity(intent);
+        finish();
     }
 
     /**
@@ -310,6 +387,9 @@ public class GameActivity extends AppCompatActivity {
         }
         if (sound != null) {
             sound.release();
+        }
+        if (scoreDao != null) {
+            scoreDao.close();
         }
         super.onDestroy();
     }

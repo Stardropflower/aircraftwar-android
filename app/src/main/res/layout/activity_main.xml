@@ -7,6 +7,7 @@
     配色取自 res/values/colors.xml，与 Windows 版保持同一套深青主题。
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_deep"
@@ -43,10 +44,45 @@
             android:id="@+id/tv_best"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="16dp"
             android:textSize="13sp"
             android:textColor="@color/text_muted"
             android:gravity="center" />
+
+        <!-- 昵称：排行榜「姓名」列用它 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="昵称"
+                android:textSize="13sp"
+                android:textColor="@color/text_muted"
+                android:layout_marginEnd="8dp" />
+
+            <EditText
+                android:id="@+id/et_name"
+                android:layout_width="150dp"
+                android:layout_height="42dp"
+                android:textSize="14sp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_muted"
+                android:hint="最多 8 个字"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:backgroundTint="@color/border"
+                android:inputType="text"
+                android:maxLength="8"
+                android:maxLines="1"
+                android:imeOptions="actionDone" />
+
+        </LinearLayout>
 
         <Button
             android:id="@+id/btn_easy"
@@ -100,6 +136,18 @@
             android:layout_height="48dp"
             android:layout_marginBottom="10dp"
             android:text="皮肤选择"
+            android:textSize="15sp"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:backgroundTint="@color/surface_hover" />
+
+        <!-- 实验四：排行榜入口 -->
+        <Button
+            android:id="@+id/btn_rank"
+            android:layout_width="260dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="10dp"
+            android:text="排行榜"
             android:textSize="15sp"
             android:textAllCaps="false"
             android:textColor="@color/text_primary"

@@ -39,10 +39,17 @@ public class GameRenderer {
     private static final int DANGER = 0xFFFF5C6C;
     private static final int PANEL_BG = 0xB4080C12;
 
-    /** 背包格的几何参数：绘制与点击判定共用，避免两处各写一套导致错位 */
-    private static final float SLOT = 46;
-    private static final float GAP = 8;
+    /**
+     * 背包格的几何参数：绘制与点击判定共用，避免两处各写一套导致错位。
+     * 格子从 46 放大到 52 —— 小屏手机上一开始点不准，容易被判成「移动飞机」。
+     */
+    private static final float SLOT = 52;
+    private static final float GAP = 10;
     private static final float SLOT_TOP = 12;
+
+    /** 顶部按钮统一尺寸与纵向位置 */
+    private static final float BTN_SIZE = 40;
+    private static final float BTN_TOP = 12;
 
     /** 战场宽度是运行期配置的，所以右边界不能写成 static final */
     private static float backpackRight() {
@@ -90,7 +97,7 @@ public class GameRenderer {
         if (world.isGameOver()) {
             drawOverlay(canvas, "游戏结束", "得分 " + world.totalScore(), DANGER);
         } else if (paused) {
-            drawOverlay(canvas, "已暂停", "点击继续", TEXT);
+            drawPauseOverlay(canvas);
         }
 
         canvas.restoreToCount(save);
@@ -143,9 +150,25 @@ public class GameRenderer {
 
     private void drawHud(Canvas canvas, GameWorld world) {
         drawStatusCard(canvas, world);
+        drawBackButton(canvas);
         drawPauseButton(canvas);
         drawBackpack(canvas, world);
         drawDifficultyChip(canvas, world);
+    }
+
+    /** 返回主菜单按钮（左上角第二个位置） */
+    private void drawBackButton(Canvas canvas) {
+        RectF r = backButtonBounds();
+        drawPanel(canvas, r.left, r.top, r.width(), r.height(), 10, PANEL_BG, BORDER);
+
+        float cx = r.centerX();
+        float cy = r.centerY();
+        strokePaint.setColor(TEXT);
+        strokePaint.setStrokeWidth(2.6f);
+        canvas.drawLine(cx + 5, cy, cx - 6, cy, strokePaint);
+        canvas.drawLine(cx - 6, cy, cx - 1, cy - 5.5f, strokePaint);
+        canvas.drawLine(cx - 6, cy, cx - 1, cy + 5.5f, strokePaint);
+        strokePaint.setStrokeWidth(1.2f);
     }
 
     /** 暂停按钮：与 {@link #pauseButtonBounds()} 的命中区域保持一致 */
@@ -163,7 +186,8 @@ public class GameRenderer {
     }
 
     private void drawStatusCard(Canvas canvas, GameWorld world) {
-        float x = 12, y = 12, w = 200, h = 76;
+        // 宽度从 200 收到 180，给右边的返回键/暂停键腾出位置
+        float x = 12, y = 12, w = 180, h = 76;
         drawPanel(canvas, x, y, w, h, 14, PANEL_BG, 0x413EC8FF);
 
         textPaint.setTextAlign(Paint.Align.LEFT);
@@ -236,11 +260,11 @@ public class GameRenderer {
         }
     }
 
-    /** 背包两格所在区域（逻辑坐标），供触屏判定「点的是 UI 不是战场」 */
+    /** 背包两格所在区域（逻辑坐标），供触屏判定「点的是 UI 不是战场」。四周留出余量，方便点中 */
     public static RectF backpackArea() {
         float right = backpackRight();
         float left = right - SLOT * 2 - GAP;
-        return new RectF(left - 6, SLOT_TOP - 6, right + 6, SLOT_TOP + SLOT + 20);
+        return new RectF(left - 5, SLOT_TOP - 8, right + 5, SLOT_TOP + SLOT + 24);
     }
 
     private void drawDifficultyChip(Canvas canvas, GameWorld world) {
@@ -302,10 +326,49 @@ public class GameRenderer {
         textPaint.setTextAlign(Paint.Align.LEFT);
     }
 
-    /** 供宿主判断点击是否落在暂停按钮上（暂用右上角留白区域） */
+    /** 暂停遮罩：除了「点击继续」，再给一个明确的「返回主菜单」按钮 */
+    private void drawPauseOverlay(Canvas canvas) {
+        fillPaint.setColor(0xAF060A10);
+        canvas.drawRect(0, 0, PlayField.width(), PlayField.height(), fillPaint);
+
+        float cx = PlayField.width() / 2f;
+        float cy = PlayField.height() / 2f;
+
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setColor(TEXT);
+        textPaint.setTextSize(36);
+        canvas.drawText("已暂停", cx, cy - 24, textPaint);
+
+        textPaint.setColor(TEXT_MUTED);
+        textPaint.setTextSize(14);
+        canvas.drawText("点击画面任意处继续", cx, cy + 6, textPaint);
+
+        RectF r = pauseExitBounds();
+        drawPanel(canvas, r.left, r.top, r.width(), r.height(), 12, 0xD91B6FA8, ACCENT);
+        textPaint.setColor(TEXT);
+        textPaint.setTextSize(15);
+        canvas.drawText("返回主菜单（结算本局）", cx, r.centerY() + 5.5f, textPaint);
+        textPaint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    /** 返回主菜单按钮（游戏内左上角区域） */
+    public static RectF backButtonBounds() {
+        float left = 290;
+        return new RectF(left, BTN_TOP, left + BTN_SIZE, BTN_TOP + BTN_SIZE);
+    }
+
+    /** 暂停按钮 */
     public static RectF pauseButtonBounds() {
-        float size = 34;
-        return new RectF(PlayField.width() - 12 - 100 - size - 10, 12,
-                PlayField.width() - 12 - 100 - 10, 12 + size);
+        float left = 338;
+        return new RectF(left, BTN_TOP, left + BTN_SIZE, BTN_TOP + BTN_SIZE);
+    }
+
+    /** 暂停遮罩里的「返回主菜单」按钮 */
+    public static RectF pauseExitBounds() {
+        float w = 230;
+        float h = 46;
+        float cx = PlayField.width() / 2f;
+        float cy = PlayField.height() / 2f;
+        return new RectF(cx - w / 2, cy + 34, cx + w / 2, cy + 34 + h);
     }
 }

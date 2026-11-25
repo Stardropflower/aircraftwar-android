@@ -32,9 +32,20 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     private static final long IDLE_SLEEP_MS = 4L;
     /** 手指上方偏移（逻辑单位）：避免手指本身挡住飞机 */
     private static final float TOUCH_OFFSET_Y = 70f;
+    /**
+     * 拖动阈值（逻辑单位）：手指移动超过这个距离，飞机才开始跟随。
+     * <p>
+     * 为什么要这个阈值：小屏手机上想点右上角的道具格，稍微点偏一点就会落到战场上，
+     * 原来是「按下即跟随」，飞机瞬间跳去顶部 UI 区，看起来像是误判成移动。
+     * 加了阈值之后，单纯点一下不会让飞机动，必须真的拖动才行。
+     */
+    private static final float DRAG_THRESHOLD = 10f;
 
     public interface Callback {
         void onGameOver(int score);
+
+        /** 玩家主动要求退出本局（点返回键 / 暂停菜单里选返回主菜单），需要立刻结算 */
+        void onExitRequested();
     }
 
     private final GameWorld world;
@@ -49,6 +60,11 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     private final float[] targetY = new float[2];
     private final boolean[] hasTarget = new boolean[2];
     private final int[] pointerOwner = {-1, -1};
+    /** 按下点（用于判断是否超过拖动阈值） */
+    private final float[] downX = new float[2];
+    private final float[] downY = new float[2];
+    /** 该玩家当前是否已经进入「拖动」状态 */
+    private final boolean[] dragging = new boolean[2];
 
     private long lastTouchDownMs = 0;
     /** 主线程投递、由渲染线程在下一个逻辑步消费的「使用背包道具」请求 */
@@ -213,10 +229,30 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
             float lx = event.getX() / scale;
             float ly = event.getY() / scale;
 
-            // 暂停按钮：只切暂停，不把英雄机带过去
+            // 返回键：请求离开本局（结算由 Activity 负责），不把飞机带过去
+            if (GameRenderer.backButtonBounds().contains(lx, ly)) {
+                uiTouch = true;
+                if (callback != null && !world.isGameOver()) {
+                    paused = true;      // 先停下来，避免结算过程中还在跑
+                    callback.onExitRequested();
+                }
+                return true;
+            }
+
+            // 暂停按钮
             if (GameRenderer.pauseButtonBounds().contains(lx, ly)) {
                 uiTouch = true;
                 togglePause();
+                return true;
+            }
+
+            // 暂停遮罩上的「返回主菜单」按钮
+            if (paused && GameRenderer.pauseExitBounds().contains(lx, ly)) {
+                uiTouch = true;
+                paused = true;
+                if (callback != null && !world.isGameOver()) {
+                    callback.onExitRequested();
+                }
                 return true;
             }
 
@@ -228,19 +264,59 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
                 return true;
             }
 
+            // 顶部 HUD 条带：既不是按钮也不该移动飞机，直接忽略，
+            // 避免「想点道具却点偏，飞机一下窜到顶部」这种误判
+            if (ly < PlayField.topInset()) {
+                uiTouch = true;
+                return true;
+            }
+
             lastTouchDownMs = System.currentTimeMillis();
         }
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-            case MotionEvent.ACTION_POINTER_DOWN:
+            case MotionEvent.ACTION_POINTER_DOWN: {
+                // 按下时只记录起点，不立刻移动飞机（这就是「拖动」而不是「点哪飞哪」）
+                int index = event.getActionIndex();
+                int id = event.getPointerId(index);
+                float lx = event.getX(index) / scale;
+                float ly = event.getY(index) / scale;
+                int player = playerForPointer(id, lx);
+                pointerOwner[player] = id;
+                downX[player] = lx;
+                downY[player] = ly;
+                dragging[player] = false;
+                hasTarget[player] = false;
+                break;
+            }
+
             case MotionEvent.ACTION_MOVE:
                 for (int i = 0; i < event.getPointerCount(); i++) {
                     int id = event.getPointerId(i);
+                    int player = -1;
+                    for (int p = 0; p < pointerOwner.length; p++) {
+                        if (pointerOwner[p] == id) {
+                            player = p;
+                            break;
+                        }
+                    }
+                    if (player < 0) {
+                        continue;
+                    }
                     float lx = event.getX(i) / scale;
                     float ly = event.getY(i) / scale;
-                    int player = playerForPointer(id, lx);
-                    pointerOwner[player] = id;
+
+                    if (!dragging[player]) {
+                        // 移动距离超过阈值才算真的在拖，否则视为点击
+                        float dx = lx - downX[player];
+                        float dy = ly - downY[player];
+                        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) {
+                            continue;
+                        }
+                        dragging[player] = true;
+                    }
+
                     targetX[player] = lx;
                     // 飞机放在手指上方一段距离，否则手指会遮住飞机
                     targetY[player] = ly - TOUCH_OFFSET_Y;
@@ -249,24 +325,28 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
                 break;
 
             case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_POINTER_UP:
+            case MotionEvent.ACTION_POINTER_UP: {
                 int id = event.getPointerId(event.getActionIndex());
                 for (int p = 0; p < pointerOwner.length; p++) {
                     if (pointerOwner[p] == id) {
                         pointerOwner[p] = -1;
                         hasTarget[p] = false;
+                        dragging[p] = false;
                     }
                 }
                 // 暂停状态下点一下空白画面继续（点在 UI 上不算）
                 if (action == MotionEvent.ACTION_UP && !uiTouch && paused
+                        && !world.isGameOver()
                         && System.currentTimeMillis() - lastTouchDownMs < 300) {
                     paused = false;
                 }
                 break;
+            }
 
             case MotionEvent.ACTION_CANCEL:
                 java.util.Arrays.fill(pointerOwner, -1);
                 java.util.Arrays.fill(hasTarget, false);
+                java.util.Arrays.fill(dragging, false);
                 break;
 
             default:

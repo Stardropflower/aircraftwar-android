@@ -73,6 +73,7 @@ public class SkinActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);
         setContentView(scroll);
+        UiInsets.applySystemBars(scroll);
 
         rebuildGrid();
     }
