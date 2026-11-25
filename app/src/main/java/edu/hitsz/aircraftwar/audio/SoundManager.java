@@ -1,51 +1,59 @@
 package edu.hitsz.aircraftwar.audio;
 
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
-import android.content.res.AssetManager;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.SoundPool;
 import android.util.Log;
 
-import java.io.IOException;
+import edu.hitsz.aircraftwar.R;
+
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * 音频管理：短音效走 {@link SoundPool}，背景音乐走 {@link MediaPlayer}。
  * <p>
- * 为什么分开？
+ * 为什么分开？（对应课件第 18 页）
  * <ul>
  *   <li>音效短、触发密集（一局要触发几百次），要求低延迟、可叠加 —— 这是 SoundPool 的强项；</li>
- *   <li>BGM 长（几 MB）、同一时刻只放一首、需要 segue —— 这是 MediaPlayer 的强项。</li>
+ *   <li>BGM 长（几 MB）、同一时刻只放一首 —— 这是 MediaPlayer 的强项。</li>
  * </ul>
- * 顺带说明：.wav 在 AAPT 的默认「不压缩」名单里，所以可以直接用
- * {@code AssetManager.openFd()} 拿到文件描述符；如果哪天有人把音频换成别的格式，
- * 这里会加载失败并打日志。
+ * <p>
+ * 音频资源按课件要求放在 <b>res/raw</b>，通过 {@code R.raw.xxx} 引用。
+ * 注意 {@code .wav} 在 AAPT 的默认「不压缩」名单里，所以
+ * {@code Resources.openRawResourceFd()} 也能拿到文件描述符；
+ * 这里统一用 {@code SoundPool.load(Context, int, int)} 和 {@code MediaPlayer.create()}，
+ * 不需要自己处理 fd。
+ * <p>
+ * 这个类的职责就是课件第 21 页说的「封装音频管理类」：音频逻辑与 Activity 解耦、
+ * 资源统一管理、生命周期集中在一处（{@link #release()}）。
  */
 public class SoundManager {
 
     private static final String TAG = "AircraftWarAudio";
 
-    /** 音效名 → 资源路径 */
-    private static final Map<String, String> EFFECT_FILES = new HashMap<>();
-    /** BGM 名 → 资源路径 */
+    /** 音效名 → R.raw 资源 id（课件第 23 页点名的四个音效） */
+    private static final Map<String, Integer> EFFECT_RES = new HashMap<>();
+
     public static final String BGM_NORMAL = "bgm_normal";
     public static final String BGM_BOSS = "bgm_boss";
 
     static {
-        EFFECT_FILES.put("hit", "videos/bullet_hit.wav");
-        EFFECT_FILES.put("item", "videos/get_supply.wav");
-        EFFECT_FILES.put("bomb", "videos/bomb_explosion.wav");
-        // 用较短的那版结束音，避免 SoundPool 解码出过大的 PCM
-        EFFECT_FILES.put("game_over", "videos/game_over_ori.wav");
+        // bullet_hit：英雄机子弹击中敌机，或敌机子弹击中英雄机
+        EFFECT_RES.put("hit", R.raw.bullet_hit);
+        // bomb_explosion：英雄机与炸弹道具碰撞（课件标注为可选，我们实现了）
+        EFFECT_RES.put("bomb", R.raw.bomb_explosion);
+        // get_supply：英雄机与非炸弹道具碰撞
+        EFFECT_RES.put("item", R.raw.get_supply);
+        // game_over：游戏结束（课件指定的文件名）
+        EFFECT_RES.put("game_over", R.raw.game_over);
     }
 
-    private static final String BGM_FILE_NORMAL = "videos/bgm.wav";
-    private static final String BGM_FILE_BOSS = "videos/bgm_boss.wav";
+    private static final int BGM_RES_NORMAL = R.raw.bgm;
+    private static final int BGM_RES_BOSS = R.raw.bgm_boss;
 
-    private final AssetManager assetManager;
+    private final Context appContext;
     private final Map<String, Integer> soundIds = new HashMap<>();
     private final Map<String, Boolean> loaded = new HashMap<>();
 
@@ -58,7 +66,9 @@ public class SoundManager {
     private float bgmVolume = 0.45f;
 
     public SoundManager(Context context) {
-        this.assetManager = context.getApplicationContext().getAssets();
+        // 用 ApplicationContext：音频管理器活得比 Activity 久，
+        // 传 Activity 会导致页面销毁后无法回收（对应课件第 24-25 页 Context 的三种获取方式）
+        this.appContext = context.getApplicationContext();
         initSoundPool();
         loadEffects();
     }
@@ -79,17 +89,17 @@ public class SoundManager {
         });
     }
 
+    /** 预加载所有音效（课件第 20 页：SoundPool 的核心优势是预加载解码、延迟低） */
     private void loadEffects() {
-        for (Map.Entry<String, String> entry : EFFECT_FILES.entrySet()) {
+        for (Map.Entry<String, Integer> entry : EFFECT_RES.entrySet()) {
             String name = entry.getKey();
-            String path = entry.getValue();
-            try (AssetFileDescriptor fd = assetManager.openFd(path)) {
-                int id = soundPool.load(fd, 1);
+            int resId = entry.getValue();
+            try {
+                int id = soundPool.load(appContext, resId, 1);
                 soundIds.put(name, id);
                 loaded.put(name, true);
-            } catch (IOException e) {
-                // 常见原因：资源被压缩（openFd 只支持未压缩的 asset），或文件名写错
-                Log.e(TAG, "音效加载失败: " + path + " -> " + e.getMessage());
+            } catch (RuntimeException e) {
+                Log.e(TAG, "音效加载失败: " + name + " -> " + e.getMessage());
                 loaded.put(name, false);
             }
         }
@@ -104,33 +114,48 @@ public class SoundManager {
         if (id == null || !Boolean.TRUE.equals(loaded.get(name))) {
             return;
         }
-        soundPool.play(id, effectVolume, effectVolume, 1, 0, 1f);
+        try {
+            soundPool.play(id, effectVolume, effectVolume, 1, 0, 1f);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "音效播放异常: " + name + " -> " + e.getMessage());
+        }
     }
 
     /**
      * 切换背景音乐。同一首正在播时不重启，避免每帧调用导致音乐卡顿。
+     * <p>
+     * Boss 曲与普通曲的切换由核心层的 onBossSpawned / onBossDefeated 事件驱动
+     * （课件第 22 页：Boss 背景音乐出现时要暂停游戏背景音乐）。
      */
     public synchronized void playBgm(String name) {
         if (name == null || name.equals(currentBgm)) {
             return;
         }
         stopBgm();
-        String path = BGM_BOSS.equals(name) ? BGM_FILE_BOSS : BGM_FILE_NORMAL;
-        try (AssetFileDescriptor fd = assetManager.openFd(path)) {
-            MediaPlayer player = new MediaPlayer();
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_GAME)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build());
-            player.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
+
+        int resId = BGM_BOSS.equals(name) ? BGM_RES_BOSS : BGM_RES_NORMAL;
+        AudioAttributes attributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build();
+        MediaPlayer player = null;
+        try {
+            // 四参 create：构造 + setDataSource + prepare 一步完成，直接返回可播放实例
+            player = MediaPlayer.create(appContext, resId, attributes, 0);
+            if (player == null) {
+                Log.e(TAG, "BGM 创建失败: " + name);
+                return;
+            }
             player.setLooping(true);
             player.setVolume(bgmVolume, bgmVolume);
-            player.prepare();
             player.start();
             bgmPlayer = player;
             currentBgm = name;
-        } catch (IOException e) {
-            Log.e(TAG, "BGM 加载失败: " + path + " -> " + e.getMessage());
+        } catch (RuntimeException e) {
+            Log.e(TAG, "BGM 播放失败: " + name + " -> " + e.getMessage());
+            if (player != null) {
+                player.release();
+            }
         }
     }
 
@@ -151,7 +176,7 @@ public class SoundManager {
         player.release();
     }
 
-    /** 暂停 BGM（切后台时用；游戏动作音效也一并静音） */
+    /** 暂停 BGM（切后台时用） */
     public synchronized void pauseBgm() {
         if (bgmPlayer != null) {
             try {
@@ -181,7 +206,8 @@ public class SoundManager {
         return muted;
     }
 
-    public void setMuted(boolean muted) {
+    /** 音乐开关（课件实验内容第 3 条） */
+    public synchronized void setMuted(boolean muted) {
         this.muted = muted;
         if (muted) {
             pauseBgm();
