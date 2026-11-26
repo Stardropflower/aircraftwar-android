@@ -306,7 +306,7 @@ public class GameActivity extends AppCompatActivity {
                 store.getPlayerName(), score, difficulty.name(), System.currentTimeMillis());
         long id = scoreDao.insert(record);
         if (id == -1) {
-            Log.w("GameActivity", "排行榜写入失败: " + score);
+            Log.e("GameActivity", "排行榜写入失败: " + score);
         }
     }
 
