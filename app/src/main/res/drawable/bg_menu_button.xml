@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    菜单按钮底：圆角 + 纵向渐变 + 1dp 描边 + 涟漪。
+    之前用的是 Material 默认控件（backgroundTint 一坨纯色），
+    在深色背景上像贴了张不透明色块；这里做两层：上面略亮、下面略暗，
+    配合顶部那道描边，视觉上有一点点「凸起」的体积感。
+-->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#333EC8FF">
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="14dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#232D3C"
+                android:endColor="#161D28" />
+            <stroke
+                android:width="1dp"
+                android:color="#2E3A4C" />
+        </shape>
+    </item>
+
+</ripple>

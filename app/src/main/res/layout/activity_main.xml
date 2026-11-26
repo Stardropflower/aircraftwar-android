@@ -4,164 +4,201 @@
     对比原来在 MainActivity 里用 Java 代码动态 new 控件的写法，
     XML 的好处是界面与逻辑分离，改布局不用动 Java 代码。
 
+    层级说明：
+    FrameLayout  ——  根容器，负责叠放
+      ├ StarfieldView  ——  最底层，程序化绘制的动态星空（不是图片）
+      └ ScrollView     ——  菜单内容，背景透明，让星空透上来
+    开场动画 IntroOverlayView 在 MainActivity 里动态 add 到根容器最上层，
+    播完自己 remove，不常驻布局。
+
     配色取自 res/values/colors.xml，与 Windows 版保持同一套深青主题。
 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_deep"
-    android:fillViewport="true">
+    android:background="@color/bg_deep">
 
-    <LinearLayout
+    <edu.hitsz.aircraftwar.ui.visual.StarfieldView
+        android:id="@+id/bg_starfield"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:paddingTop="90dp"
-        android:paddingBottom="40dp">
+        android:layout_height="match_parent" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="飞机大战"
-            android:textSize="42sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:gravity="center" />
+    <ScrollView
+        android:id="@+id/menu_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="never"
+        android:scrollbars="none"
+        android:fillViewport="true">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="28dp"
-            android:text="AIRCRAFT WAR · Android"
-            android:textSize="12sp"
-            android:textColor="@color/accent"
-            android:gravity="center" />
-
-        <TextView
-            android:id="@+id/tv_best"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:textSize="13sp"
-            android:textColor="@color/text_muted"
-            android:gravity="center" />
-
-        <!-- 昵称：排行榜「姓名」列用它 -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="14dp">
+            android:orientation="vertical"
+            android:gravity="center_horizontal|center_vertical"
+            android:paddingTop="24dp"
+            android:paddingBottom="32dp">
 
-            <TextView
+            <edu.hitsz.aircraftwar.ui.visual.GradientTextView
+                android:id="@+id/tv_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="昵称"
-                android:textSize="13sp"
-                android:textColor="@color/text_muted"
-                android:layout_marginEnd="8dp" />
-
-            <EditText
-                android:id="@+id/et_name"
-                android:layout_width="150dp"
-                android:layout_height="42dp"
-                android:textSize="14sp"
+                android:text="飞机大战"
+                android:textSize="44sp"
+                android:textStyle="bold"
                 android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_muted"
-                android:hint="最多 8 个字"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tv_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="30dp"
+                android:text="AIRCRAFT WAR · ANDROID"
+                android:textSize="10sp"
+                android:textColor="@color/accent"
+                android:letterSpacing="0.34"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tv_best"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="18dp"
+                android:background="@drawable/bg_chip"
+                android:paddingStart="18dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="18dp"
+                android:paddingBottom="10dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_muted"
+                android:gravity="center" />
+
+            <!-- 昵称：排行榜「姓名」列用它 -->
+            <LinearLayout
+                android:id="@+id/row_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:backgroundTint="@color/border"
-                android:inputType="text"
-                android:maxLength="8"
-                android:maxLines="1"
-                android:imeOptions="actionDone" />
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="昵称"
+                    android:textSize="13sp"
+                    android:textColor="@color/text_muted"
+                    android:layout_marginEnd="10dp" />
+
+                <EditText
+                    android:id="@+id/et_name"
+                    android:layout_width="160dp"
+                    android:layout_height="44dp"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:hint="最多 8 个字"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_input"
+                    android:inputType="text"
+                    android:maxLength="8"
+                    android:maxLines="1"
+                    android:imeOptions="actionDone" />
+
+            </LinearLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_easy"
+                android:layout_width="272dp"
+                android:layout_height="54dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="简单　EASY"
+                android:textSize="17sp"
+                android:textAllCaps="false"
+                android:letterSpacing="0.04"
+                android:textColor="@color/success" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_normal"
+                android:layout_width="272dp"
+                android:layout_height="54dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="普通　NORMAL"
+                android:textSize="17sp"
+                android:textAllCaps="false"
+                android:letterSpacing="0.04"
+                android:textColor="@color/accent" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_hard"
+                android:layout_width="272dp"
+                android:layout_height="54dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="困难　HARD"
+                android:textSize="17sp"
+                android:textAllCaps="false"
+                android:letterSpacing="0.04"
+                android:textColor="@color/danger" />
+
+            <TextView
+                android:id="@+id/tv_skin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:layout_marginBottom="12dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_muted"
+                android:gravity="center" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_skin"
+                android:layout_width="272dp"
+                android:layout_height="48dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="皮肤选择"
+                android:textSize="15sp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary" />
+
+            <!-- 实验四：排行榜入口 -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_rank"
+                android:layout_width="272dp"
+                android:layout_height="48dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="排行榜"
+                android:textSize="15sp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary" />
+
+            <!-- 实验三实验内容第 3 条：音乐开关 -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_music"
+                android:layout_width="272dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:textSize="15sp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary" />
 
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btn_easy"
-            android:layout_width="260dp"
-            android:layout_height="54dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="6dp"
-            android:text="简单 EASY"
-            android:textSize="17sp"
-            android:textAllCaps="false"
-            android:textColor="@color/success"
-            android:backgroundTint="@color/surface_hover" />
+    </ScrollView>
 
-        <Button
-            android:id="@+id/btn_normal"
-            android:layout_width="260dp"
-            android:layout_height="54dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="6dp"
-            android:text="普通 NORMAL"
-            android:textSize="17sp"
-            android:textAllCaps="false"
-            android:textColor="@color/accent"
-            android:backgroundTint="@color/surface_hover" />
-
-        <Button
-            android:id="@+id/btn_hard"
-            android:layout_width="260dp"
-            android:layout_height="54dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="6dp"
-            android:text="困难 HARD"
-            android:textSize="17sp"
-            android:textAllCaps="false"
-            android:textColor="@color/danger"
-            android:backgroundTint="@color/surface_hover" />
-
-        <TextView
-            android:id="@+id/tv_skin"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:layout_marginBottom="10dp"
-            android:textSize="13sp"
-            android:textColor="@color/text_muted"
-            android:gravity="center" />
-
-        <Button
-            android:id="@+id/btn_skin"
-            android:layout_width="260dp"
-            android:layout_height="48dp"
-            android:layout_marginBottom="10dp"
-            android:text="皮肤选择"
-            android:textSize="15sp"
-            android:textAllCaps="false"
-            android:textColor="@color/text_primary"
-            android:backgroundTint="@color/surface_hover" />
-
-        <!-- 实验四：排行榜入口 -->
-        <Button
-            android:id="@+id/btn_rank"
-            android:layout_width="260dp"
-            android:layout_height="48dp"
-            android:layout_marginBottom="10dp"
-            android:text="排行榜"
-            android:textSize="15sp"
-            android:textAllCaps="false"
-            android:textColor="@color/text_primary"
-            android:backgroundTint="@color/surface_hover" />
-
-        <!-- 实验三实验内容第 3 条：音乐开关 -->
-        <Button
-            android:id="@+id/btn_music"
-            android:layout_width="260dp"
-            android:layout_height="48dp"
-            android:textSize="15sp"
-            android:textAllCaps="false"
-            android:textColor="@color/text_primary"
-            android:backgroundTint="@color/surface_hover" />
-
-    </LinearLayout>
-</ScrollView>
+</FrameLayout>
