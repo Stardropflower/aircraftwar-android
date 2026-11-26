@@ -99,7 +99,9 @@ public class GameActivity extends AppCompatActivity {
         store = new LocalStore(this);
         scoreDao = new ScoreDao(this);
         sound = new SoundManager(this);
-        sound.setMuted(store.isMuted());
+        // 音乐与音效是两个独立开关，分别套用
+        sound.setMusicMuted(store.isMusicMuted());
+        sound.setSoundMuted(store.isSoundMuted());
 
         // 4) 创建游戏世界，套上玩家选中的皮肤
         world = createWorld(difficulty);

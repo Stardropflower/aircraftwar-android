@@ -26,6 +26,8 @@ public final class LocalStore {
     private static final String KEY_BEST_PREFIX = "best_";
     private static final String KEY_SKIN = "selected_skin";
     private static final String KEY_MUTED = "muted";
+    private static final String KEY_MUSIC_MUTED = "music_muted";
+    private static final String KEY_SOUND_MUTED = "sound_muted";
     private static final String KEY_PLAYER_NAME = "player_name";
 
     private final SharedPreferences prefs;
@@ -109,14 +111,55 @@ public final class LocalStore {
         prefs.edit().putString(KEY_PLAYER_NAME, trimmed).apply();
     }
 
-    // ---------------- 静音开关 ----------------
+    // ---------------- 音频开关 ----------------
+    // 音乐和音效分开存：BGM 是一整首循环，音效是几百次短促触发，
+    // 想关哪个是独立需求（比如只想关 BGM 听音效）。
 
+    public boolean isMusicMuted() {
+        migrateLegacyMute();
+        return prefs.getBoolean(KEY_MUSIC_MUTED, false);
+    }
+
+    public void setMusicMuted(boolean muted) {
+        prefs.edit().putBoolean(KEY_MUSIC_MUTED, muted).apply();
+    }
+
+    public boolean isSoundMuted() {
+        migrateLegacyMute();
+        return prefs.getBoolean(KEY_SOUND_MUTED, false);
+    }
+
+    public void setSoundMuted(boolean muted) {
+        prefs.edit().putBoolean(KEY_SOUND_MUTED, muted).apply();
+    }
+
+    /**
+     * 旧版本只有一个总开关 {@code muted}，拆成两个之后要把它迁移过来，
+     * 否则老用户升级完会突然开始有声音。只在两个新键都不存在时做一次。
+     */
+    private void migrateLegacyMute() {
+        if (prefs.contains(KEY_MUSIC_MUTED) || prefs.contains(KEY_SOUND_MUTED)) {
+            return;
+        }
+        if (!prefs.contains(KEY_MUTED)) {
+            return;
+        }
+        boolean legacy = prefs.getBoolean(KEY_MUTED, false);
+        prefs.edit()
+                .putBoolean(KEY_MUSIC_MUTED, legacy)
+                .putBoolean(KEY_SOUND_MUTED, legacy)
+                .remove(KEY_MUTED)
+                .apply();
+    }
+
+    /** 两个通道都关了才算整体静音 */
     public boolean isMuted() {
-        return prefs.getBoolean(KEY_MUTED, false);
+        return isMusicMuted() && isSoundMuted();
     }
 
     public void setMuted(boolean muted) {
-        prefs.edit().putBoolean(KEY_MUTED, muted).apply();
+        setMusicMuted(muted);
+        setSoundMuted(muted);
     }
 
     /** 清空全部存档（调试用） */

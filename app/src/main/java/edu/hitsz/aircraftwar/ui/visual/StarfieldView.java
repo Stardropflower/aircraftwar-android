@@ -56,6 +56,11 @@ public class StarfieldView extends View implements Choreographer.FrameCallback {
     private long lastFrameNanos;
     private float timeSec;
     private boolean starsReady;
+    /**
+     * 底部装饰字默认关闭：它是「首页商标」，放在有内容的页面上会和底部文字打架
+     * （排行榜底部的统计行就被它压住过）。只有主菜单显式打开。
+     */
+    private boolean watermarkEnabled;
 
     public StarfieldView(Context context) {
         this(context, null);
@@ -210,11 +215,21 @@ public class StarfieldView extends View implements Choreographer.FrameCallback {
         bgPaint.setShader(null);
 
         drawStars(canvas);
-        drawWatermark(canvas, w, h);
+        if (watermarkEnabled) {
+            drawWatermark(canvas, w, h);
+        }
 
         bgPaint.setShader(vignetteShader);
         canvas.drawRect(0, 0, w, h, bgPaint);
         bgPaint.setShader(null);
+    }
+
+    /** 是否在底部画 "AIRCRAFT WAR" 装饰字；只在主菜单打开 */
+    public void setWatermarkEnabled(boolean enabled) {
+        if (watermarkEnabled != enabled) {
+            watermarkEnabled = enabled;
+            invalidate();
+        }
     }
 
     private void drawStars(Canvas canvas) {

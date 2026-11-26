@@ -8,10 +8,11 @@
     FrameLayout  ——  根容器，负责叠放
       ├ StarfieldView  ——  最底层，程序化绘制的动态星空（不是图片）
       └ ScrollView     ——  菜单内容，背景透明，让星空透上来
-    开场动画 IntroOverlayView 在 MainActivity 里动态 add 到根容器最上层，
-    播完自己 remove，不常驻布局。
+    开场动画 IntroOverlayView、二级面板 MenuOverlayView 都在 MainActivity 里
+    动态 add 到根容器最上层，用完自己 remove，不常驻布局。
 
-    配色取自 res/values/colors.xml，与 Windows 版保持同一套深青主题。
+    这一版菜单只保留四个入口；难度选择收进「开始游戏」弹出的面板里，
+    音乐/音效开关收进「设置」，一级页面只管导航，不再堆参数。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root_main"
@@ -55,7 +56,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:layout_marginBottom="30dp"
+                android:layout_marginBottom="26dp"
                 android:text="AIRCRAFT WAR · ANDROID"
                 android:textSize="10sp"
                 android:textColor="@color/accent"
@@ -66,12 +67,70 @@
                 android:id="@+id/tv_best"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="18dp"
+                android:layout_marginBottom="26dp"
                 android:background="@drawable/bg_chip"
                 android:paddingStart="18dp"
                 android:paddingTop="10dp"
                 android:paddingEnd="18dp"
                 android:paddingBottom="10dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_muted"
+                android:gravity="center" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_start"
+                android:layout_width="272dp"
+                android:layout_height="58dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_menu_button_primary"
+                android:stateListAnimator="@null"
+                android:text="开始游戏"
+                android:textSize="18sp"
+                android:textAllCaps="false"
+                android:letterSpacing="0.06"
+                android:textColor="@color/accent" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_skin"
+                android:layout_width="272dp"
+                android:layout_height="50dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="皮肤选择"
+                android:textSize="16sp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary" />
+
+            <!-- 实验四：排行榜入口 -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_rank"
+                android:layout_width="272dp"
+                android:layout_height="50dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="排行榜"
+                android:textSize="16sp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_settings"
+                android:layout_width="272dp"
+                android:layout_height="50dp"
+                android:background="@drawable/bg_menu_button"
+                android:stateListAnimator="@null"
+                android:text="设置"
+                android:textSize="16sp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:id="@+id/tv_skin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
                 android:textSize="12sp"
                 android:textColor="@color/text_muted"
                 android:gravity="center" />
@@ -83,7 +142,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="20dp">
+                android:layout_marginTop="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -111,91 +170,6 @@
                     android:imeOptions="actionDone" />
 
             </LinearLayout>
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_easy"
-                android:layout_width="272dp"
-                android:layout_height="54dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/bg_menu_button"
-                android:stateListAnimator="@null"
-                android:text="简单　EASY"
-                android:textSize="17sp"
-                android:textAllCaps="false"
-                android:letterSpacing="0.04"
-                android:textColor="@color/success" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_normal"
-                android:layout_width="272dp"
-                android:layout_height="54dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/bg_menu_button"
-                android:stateListAnimator="@null"
-                android:text="普通　NORMAL"
-                android:textSize="17sp"
-                android:textAllCaps="false"
-                android:letterSpacing="0.04"
-                android:textColor="@color/accent" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_hard"
-                android:layout_width="272dp"
-                android:layout_height="54dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/bg_menu_button"
-                android:stateListAnimator="@null"
-                android:text="困难　HARD"
-                android:textSize="17sp"
-                android:textAllCaps="false"
-                android:letterSpacing="0.04"
-                android:textColor="@color/danger" />
-
-            <TextView
-                android:id="@+id/tv_skin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="26dp"
-                android:layout_marginBottom="12dp"
-                android:textSize="12sp"
-                android:textColor="@color/text_muted"
-                android:gravity="center" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_skin"
-                android:layout_width="272dp"
-                android:layout_height="48dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/bg_menu_button"
-                android:stateListAnimator="@null"
-                android:text="皮肤选择"
-                android:textSize="15sp"
-                android:textAllCaps="false"
-                android:textColor="@color/text_primary" />
-
-            <!-- 实验四：排行榜入口 -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_rank"
-                android:layout_width="272dp"
-                android:layout_height="48dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/bg_menu_button"
-                android:stateListAnimator="@null"
-                android:text="排行榜"
-                android:textSize="15sp"
-                android:textAllCaps="false"
-                android:textColor="@color/text_primary" />
-
-            <!-- 实验三实验内容第 3 条：音乐开关 -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_music"
-                android:layout_width="272dp"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_menu_button"
-                android:stateListAnimator="@null"
-                android:textSize="15sp"
-                android:textAllCaps="false"
-                android:textColor="@color/text_primary" />
 
         </LinearLayout>
 

@@ -61,7 +61,10 @@ public class SoundManager {
     private MediaPlayer bgmPlayer;
     private String currentBgm;
 
-    private boolean muted = false;
+    private boolean musicMuted = false;
+    private boolean soundMuted = false;
+    /** 音乐被关掉时收到的「想播放哪首」，等重新打开时补上 */
+    private String pendingBgm;
     private float effectVolume = 0.8f;
     private float bgmVolume = 0.45f;
 
@@ -107,7 +110,7 @@ public class SoundManager {
 
     /** 播放一次性音效；未加载成功或静音时静默跳过 */
     public void playEffect(String name) {
-        if (muted) {
+        if (soundMuted) {
             return;
         }
         Integer id = soundIds.get(name);
@@ -129,6 +132,11 @@ public class SoundManager {
      */
     public synchronized void playBgm(String name) {
         if (name == null || name.equals(currentBgm)) {
+            return;
+        }
+        if (musicMuted) {
+            // 关着音乐时记下来，用户一开就能接上，而不是要等下一次切曲
+            pendingBgm = name;
             return;
         }
         stopBgm();
@@ -203,17 +211,44 @@ public class SoundManager {
     }
 
     public boolean isMuted() {
-        return muted;
+        return musicMuted && soundMuted;
     }
 
-    /** 音乐开关（课件实验内容第 3 条） */
-    public synchronized void setMuted(boolean muted) {
-        this.muted = muted;
+    /** 音乐开关：关掉就暂停 BGM，打开时接着放（或补上被关掉期间想播的那首） */
+    public synchronized void setMusicMuted(boolean muted) {
+        this.musicMuted = muted;
         if (muted) {
+            pendingBgm = currentBgm;
             pauseBgm();
+            return;
+        }
+        String pending = pendingBgm;
+        pendingBgm = null;
+        if (pending != null && !pending.equals(currentBgm)) {
+            currentBgm = null;
+            playBgm(pending);
         } else {
             resumeBgm();
         }
+    }
+
+    public boolean isMusicMuted() {
+        return musicMuted;
+    }
+
+    /** 音效开关：只管 SoundPool，不碰 BGM */
+    public void setSoundMuted(boolean muted) {
+        this.soundMuted = muted;
+    }
+
+    public boolean isSoundMuted() {
+        return soundMuted;
+    }
+
+    /** 两个通道一起切（保留给「一键静音」这类场景） */
+    public synchronized void setMuted(boolean muted) {
+        setSoundMuted(muted);
+        setMusicMuted(muted);
     }
 
     public void setVolumes(float effect, float bgm) {

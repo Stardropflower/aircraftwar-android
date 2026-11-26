@@ -1,15 +1,14 @@
 package edu.hitsz.aircraftwar.ui;
 
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import edu.hitsz.aircraftwar.BuildConfig;
@@ -18,17 +17,20 @@ import edu.hitsz.aircraftwar.core.aircraft.HeroAircraft;
 import edu.hitsz.aircraftwar.core.data.Difficulty;
 import edu.hitsz.aircraftwar.data.LocalStore;
 import edu.hitsz.aircraftwar.ui.visual.IntroOverlayView;
+import edu.hitsz.aircraftwar.ui.visual.MenuOverlayView;
+import edu.hitsz.aircraftwar.ui.visual.StarfieldView;
 
 /**
- * 入口页：选择难度、查看本机最高分、进入皮肤选择、切换音乐开关。
+ * 入口页：一级菜单只放四个入口，参数都收进二级面板。
  * <p>
  * 布局走 XML（{@code res/layout/activity_main.xml}），这是实验三讲的「静态布局」路线：
  * 界面结构在 XML 里声明，Java 只负责找控件（{@code findViewById}）和绑事件（{@code setOnClickListener}）。
  * <p>
- * 视觉部分有两层动态内容，都由代码驱动、不依赖任何图片资源：
+ * 页面上叠着两层自绘 View，都由代码驱动、不依赖任何图片资源：
  * <ol>
  *   <li>{@link edu.hitsz.aircraftwar.ui.visual.StarfieldView} —— 常驻的动态星空背景；</li>
- *   <li>{@link IntroOverlayView} —— 冷启动时的开场动画，播完把自己摘掉。</li>
+ *   <li>{@link IntroOverlayView} —— 冷启动时的开场动画，播完把自己摘掉；</li>
+ *   <li>{@link MenuOverlayView} —— 点「开始游戏 / 设置」弹出的二级面板，同样用完就摘。</li>
  * </ol>
  * 开场动画只在「这个 Activity 是新建的」时候播（{@code savedInstanceState == null}）：
  * 从游戏页退回来、或者转屏重建时不重播，否则每打一局都要等一次片头。
@@ -40,8 +42,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView skinLabel;
     private TextView titleLabel;
     private TextView subtitleLabel;
-    private Button musicButton;
     private EditText nameInput;
+
+    /** 当前打开的二级面板，null 表示没有 */
+    private MenuOverlayView panel;
 
     /** 开场结束后依次淡入的控件，顺序即出场顺序 */
     private View[] cascadeViews;
@@ -62,47 +66,77 @@ public class MainActivity extends AppCompatActivity {
         //    通过 setContentView() 加载布局资源）
         setContentView(R.layout.activity_main);
         UiInsets.applySystemBars(findViewById(R.id.menu_scroll));
+        // 底部那行装饰字是首页专属，别的页面开着会和内容打架
+        ((StarfieldView) findViewById(R.id.bg_starfield)).setWatermarkEnabled(true);
 
         // ② 找到布局里的控件
         bestScoreLabel = findViewById(R.id.tv_best);
         skinLabel = findViewById(R.id.tv_skin);
         titleLabel = findViewById(R.id.tv_title);
         subtitleLabel = findViewById(R.id.tv_subtitle);
-        musicButton = findViewById(R.id.btn_music);
         nameInput = findViewById(R.id.et_name);
         nameInput.setText(store.getPlayerName());
 
         // ③ 基于监听的事件处理（实验三第 11 页）：给控件绑监听器
-        findViewById(R.id.btn_easy).setOnClickListener(v -> startGame(Difficulty.EASY));
-        findViewById(R.id.btn_normal).setOnClickListener(v -> startGame(Difficulty.NORMAL));
-        findViewById(R.id.btn_hard).setOnClickListener(v -> startGame(Difficulty.HARD));
+        findViewById(R.id.btn_start).setOnClickListener(v -> openPanel(MenuOverlayView.Mode.START));
         findViewById(R.id.btn_skin).setOnClickListener(v -> openSkinPage());
         findViewById(R.id.btn_rank).setOnClickListener(v -> openRankPage());
-        musicButton.setOnClickListener(v -> toggleMusic());
+        findViewById(R.id.btn_settings).setOnClickListener(v -> openPanel(MenuOverlayView.Mode.SETTINGS));
 
         cascadeViews = new View[]{
                 bestScoreLabel,
-                findViewById(R.id.row_name),
-                findViewById(R.id.btn_easy),
-                findViewById(R.id.btn_normal),
-                findViewById(R.id.btn_hard),
-                skinLabel,
+                findViewById(R.id.btn_start),
                 findViewById(R.id.btn_skin),
                 findViewById(R.id.btn_rank),
-                musicButton,
+                findViewById(R.id.btn_settings),
+                skinLabel,
+                findViewById(R.id.row_name),
         };
 
         refreshLabels();
         startEntrance(savedInstanceState == null);
+        registerBackHandling();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // 从皮肤页返回后要刷新「当前皮肤」和最高分
-        if (bestScoreLabel != null) {
-            refreshLabels();
+    /** 面板开着时，返回键先收面板，而不是直接退出 Activity */
+    private void registerBackHandling() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (panel != null && panel.isShowing()) {
+                    panel.goBack();
+                } else {
+                    finish();
+                }
+            }
+        });
+    }
+
+    // ---------------- 二级面板 ----------------
+
+    private void openPanel(MenuOverlayView.Mode mode) {
+        if (panel != null && panel.isShowing()) {
+            return;
         }
+        panel = new MenuOverlayView(this);
+        panel.bind(store, new MenuOverlayView.Listener() {
+            @Override
+            public void onStartGame(Difficulty difficulty) {
+                panel = null;
+                startGame(difficulty);
+            }
+
+            @Override
+            public void onDismiss() {
+                panel = null;
+            }
+        });
+
+        FrameLayout root = findViewById(R.id.root_main);
+        root.addView(panel, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        panel.open(mode);
     }
 
     // ---------------- 入场动画 ----------------
@@ -112,8 +146,10 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startEntrance(boolean playIntro) {
         for (View view : cascadeViews) {
-            view.setAlpha(0f);
-            view.setTranslationY(dp(14f));
+            if (view != null) {
+                view.setAlpha(0f);
+                view.setTranslationY(dp(14f));
+            }
         }
         titleLabel.setAlpha(0f);
         subtitleLabel.setAlpha(0f);
@@ -151,7 +187,11 @@ public class MainActivity extends AppCompatActivity {
         titleLabel.setAlpha(1f);
         subtitleLabel.setAlpha(1f);
         for (int i = 0; i < cascadeViews.length; i++) {
-            cascadeViews[i].animate()
+            View view = cascadeViews[i];
+            if (view == null) {
+                continue;
+            }
+            view.animate()
                     .alpha(1f)
                     .translationY(0f)
                     .setStartDelay(i * 45L)
@@ -194,10 +234,13 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
     }
 
-    /** 音乐开关（实验三实验内容第 3 条）：状态存进 SharedPreferences，进游戏时读取 */
-    private void toggleMusic() {
-        store.setMuted(!store.isMuted());
-        refreshLabels();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 从皮肤页返回后要刷新「当前皮肤」和最高分
+        if (bestScoreLabel != null) {
+            refreshLabels();
+        }
     }
 
     private void refreshLabels() {
@@ -208,8 +251,5 @@ public class MainActivity extends AppCompatActivity {
 
         HeroAircraft.Skin skin = store.getSelectedSkin();
         skinLabel.setText("当前皮肤：" + skin.getDisplayName());
-
-        boolean muted = store.isMuted();
-        musicButton.setText(muted ? "音乐音效：关闭" : "音乐音效：开启");
     }
 }

@@ -5,6 +5,7 @@ import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +18,7 @@ import edu.hitsz.aircraftwar.R;
 import edu.hitsz.aircraftwar.core.data.Difficulty;
 import edu.hitsz.aircraftwar.db.ScoreDao;
 import edu.hitsz.aircraftwar.db.ScoreRecord;
+import edu.hitsz.aircraftwar.ui.visual.StarfieldView;
 
 /**
  * 排行榜页面（实验四的 4 项内容都在这里体现）。
@@ -43,7 +45,17 @@ public class RankActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_rank);
+        // 和主菜单/皮肤页同一套星空背景：页面之间切换时背景连续，
+        // 不会出现「点进来突然换成纯色底」的割裂感
+        FrameLayout container = new FrameLayout(this);
+        container.setBackgroundColor(0xFF0E1218);
+        container.addView(new StarfieldView(this), new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        View content = getLayoutInflater().inflate(R.layout.activity_rank, container, false);
+        content.setBackgroundColor(0x00000000);
+        container.addView(content, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(container);
         UiInsets.applySystemBars(findViewById(R.id.root_rank));
 
         dao = new ScoreDao(this);
