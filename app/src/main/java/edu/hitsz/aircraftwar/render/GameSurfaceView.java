@@ -85,6 +85,11 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         this.callback = callback;
     }
 
+    /** 网络对战：转发对手信息到渲染器，由渲染线程在下一帧画出来。 */
+    public void setOpponentInfo(String text) {
+        renderer.setOpponentInfo(text);
+    }
+
     // ---------------- Surface 生命周期 ----------------
 
     @Override
