@@ -29,6 +29,7 @@ public final class LocalStore {
     private static final String KEY_MUSIC_MUTED = "music_muted";
     private static final String KEY_SOUND_MUTED = "sound_muted";
     private static final String KEY_PLAYER_NAME = "player_name";
+    private static final String KEY_BATTLE_SERVER = "battle_server";
 
     private final SharedPreferences prefs;
 
@@ -109,6 +110,25 @@ public final class LocalStore {
             trimmed = trimmed.substring(0, 8);
         }
         prefs.edit().putString(KEY_PLAYER_NAME, trimmed).apply();
+    }
+
+    // ---------------- 对战服务器地址 ----------------
+    // 真机联机时每个人电脑的局域网 IP 都不一样，必须能记住上次填的地址，
+    // 否则每次进对战页都要重新敲一遍 IP。
+
+    /** @return 上次使用的服务器地址；没填过返回 null，调用方自行回退到默认值 */
+    public String getBattleServer() {
+        String value = prefs.getString(KEY_BATTLE_SERVER, null);
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    public void setBattleServer(String url) {
+        prefs.edit()
+                .putString(KEY_BATTLE_SERVER, url == null ? "" : url.trim())
+                .apply();
     }
 
     // ---------------- 音频开关 ----------------

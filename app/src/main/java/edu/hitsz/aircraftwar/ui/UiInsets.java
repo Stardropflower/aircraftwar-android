@@ -15,13 +15,13 @@ import androidx.core.view.WindowInsetsCompat;
  * <p>
  * 游戏页是全屏沉浸式，自己隐藏了系统栏，不需要这个处理。
  */
-final class UiInsets {
+public final class UiInsets {
 
     private UiInsets() {
     }
 
     /** 把根布局的内边距设为系统栏高度 */
-    static void applySystemBars(View root) {
+    public static void applySystemBars(View root) {
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
             Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
