@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    网络对战用的是 ws://（WebSocket 明文），而 Android 9（API 28）起默认禁止明文流量。
+    不放开的后果是 OkHttp 直接抛：
+
+        CLEARTEXT communication to 10.250.115.81 not permitted by network security policy
+
+    表现出来就是「点了创建房间没反应、服务端也收不到连接」。
+
+    这里放开明文是因为对战服务端跑在局域网的电脑上，既没有证书也上不了 wss://。
+    真要对外发布，应该给服务端配 TLS 并改用 wss://，到时把这里改回默认即可。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
