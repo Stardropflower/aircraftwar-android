@@ -12,6 +12,7 @@ import edu.hitsz.aircraftwar.R;
 import edu.hitsz.aircraftwar.core.aircraft.HeroAircraft;
 import edu.hitsz.aircraftwar.core.data.Difficulty;
 import edu.hitsz.aircraftwar.data.LocalStore;
+import edu.hitsz.aircraftwar.net.BattleRoomActivity;
 
 /**
  * 入口页：选择难度、查看本机最高分、进入皮肤选择、切换音乐开关。
@@ -56,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_hard).setOnClickListener(v -> startGame(Difficulty.HARD));
         findViewById(R.id.btn_skin).setOnClickListener(v -> openSkinPage());
         findViewById(R.id.btn_rank).setOnClickListener(v -> openRankPage());
+        findViewById(R.id.btn_battle).setOnClickListener(v -> openBattlePage());
         musicButton.setOnClickListener(v -> toggleMusic());
 
         refreshLabels();
@@ -86,6 +88,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void openRankPage() {
         startActivity(new Intent(this, RankActivity.class));
+    }
+
+    private void openBattlePage() {
+        startActivity(new Intent(this, BattleRoomActivity.class));
     }
 
     /** 离开页面时保存昵称，避免为了存名字而多弹一次确认框 */

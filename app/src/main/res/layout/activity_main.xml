@@ -163,5 +163,17 @@
             android:textColor="@color/text_primary"
             android:backgroundTint="@color/surface_hover" />
 
+        <!-- 实验五：网络对战（比分竞赛） -->
+        <Button
+            android:id="@+id/btn_battle"
+            android:layout_width="260dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="网络对战"
+            android:textSize="15sp"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:backgroundTint="@color/surface_hover" />
+
     </LinearLayout>
 </ScrollView>
