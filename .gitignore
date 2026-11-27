@@ -29,3 +29,6 @@ Thumbs.db
 # ---- 运行时数据 ----
 rankings/
 *.log
+
+# ---- 对战服务端 ----
+server/node_modules/
