@@ -1,124 +1,173 @@
-﻿# 飞机大战 · Android 版（AircraftWar-Android）
+# 飞机大战 · Android 版（AircraftWar-Android）
 
-> 《软件构造实践》第二学期实验项目 —— 把 Windows 版飞机大战迁移到 Android，并在其上增加网络对战等功能。
+> 《软件构造实践》第二学期实验项目 —— 把 Windows 版飞机大战（Java Swing）迁移到 Android，
+> 并在此基础上实现网络对战。
 >
 > 课程：哈尔滨工业大学（深圳）· 软件构造实践 · 2026 秋
-> 授课内容：Android 开发技术（课件 `实验1.pdf`，35 页；原件不入库，要点见 [`docs/00-课程要求摘要.md`](docs/00-课程要求摘要.md)）
+> 仓库：Gitee `git@gitee.com:stardropflower/air-battle-android-version.git`（**验收以此为准**）
+> 同步镜像：GitHub `https://github.com/Stardropflower/aircraftwar-android`
 
-## 项目定位
-
-本仓库是**实验项目的唯一代码仓**，承接 Windows 版（Java Swing）的全部玩法与设计，
-目标是交付一个可在 Android 真机/模拟器上运行的飞机大战，并在其上完成课程要求的网络功能。
-
-- Windows 版源仓库：`https://github.com/Stardropflower/aircraftwar`（private，Java Swing + Supabase 云端榜）
-- 迁移策略：**游戏内核（规则/状态机/对象模型）整体复用，只替换平台相关的四类边界**
-  —— 渲染、主循环、输入、资源与存储/网络。详见 [迁移分析](docs/02-迁移分析.md)。
-
-## 本学期实验路线图
+## 当前状态
 
 | 实验 | 学时 | 内容 | 提交物 | 状态 |
 |------|------|------|--------|------|
-| 一 | 2 | Android 开发技术 | **任务书** | 🟡 草稿已就绪，待补小组信息 → [任务书](docs/01-任务书.md) |
-| 二 | 4 | 代码迁移 | 程序 | 🟢 **核心层 + 渲染层已跑通真机** |
-| 三 | 4 | 界面与音效 | 程序 | ⬜ 未开始 |
-| 四 | 4 | 排行榜与存储 | 程序 | ⬜ 未开始 |
-| 五 | 4 | 网络对战 | 程序 | ⬜ 未开始 |
+| 一 | 2 | Android 开发技术 | **任务书** | ✅ 已提交 → [任务书](docs/01-任务书.md) |
+| 二 | 4 | 代码迁移 | 程序 | ✅ 完成，模拟器实测通过 |
+| 三 | 4 | 界面与音效 | 程序 | ✅ 完成（含音乐/音效开关、XML 与自绘两套界面） |
+| 四 | 4 | 排行榜与存储 | 程序 | ✅ 完成（ListView + BaseAdapter + SQLite + 删除） |
+| 五 | 4 | 网络对战 | 程序 | 🟡 已实现并合入主分支，**不在中期验收范围** |
 | 六 | 2 | 扩展功能 | 程序 | ⬜ 未开始 |
 | 七 | 4 | 结题验收 | 结题报告 | ⬜ 未开始 |
 
-> 课程说明：本课程是实践类课程，以学生实践为主，**开发功能不受以上内容约束**，可在此基础上开发个人感兴趣内容。
+> **中期检查范围是实验一～四**。实验五（网络对战）的代码已经合入主线，
+> 但验收时不作为考核内容，仅作为"已完成工作"介绍。
 
-## 📱 当前进度（实验二：代码迁移）
+## 界面
 
-已在 **Android 15 模拟器（1080×2400）** 上实际运行验证：
-
-| 主界面 | 游戏内（含背包） | 皮肤选择 |
+| 主菜单 | 开始面板（二级） | 游戏内 |
 |---|---|---|
-| ![菜单](docs/screenshots/menu.png) | ![游戏](docs/screenshots/gameplay.png) | ![皮肤](docs/screenshots/skins.png) |
+| ![主菜单](docs/screenshots/menu.png) | ![开始面板](docs/screenshots/menu-panel.png) | ![游戏](docs/screenshots/gameplay.png) |
 
-已完成：
+菜单为**二级结构**：主界面四个入口（开始游戏 / 皮肤选择 / 排行榜 / 设置），
+点「开始游戏」弹出面板再选单机或联机。三层视觉都是纯代码自绘、不依赖图片资源：
 
-- **M1 核心逻辑层**：`core/` 43 个类，**零 Android 依赖**，22 项 JVM 单元测试全绿
-  （Boss/炸弹/冰冻/背包/双人归属等规则与 Windows 版一致）
-- **M2 渲染与主循环**：`SurfaceView` + 独立渲染线程，逻辑 25Hz + 渲染 60fps 插值；
-  触屏拖动控制、暂停按钮、HUD（得分/血条/道具格/难度）、结算弹窗
-- **M3 界面、音效与皮肤**：
-  - 音频：`SoundPool` 放命中/拾取/炸弹/结束音效，`MediaPlayer` 放 BGM，
-    Boss 出现自动切曲，切后台自动暂停，进入游戏页释放资源
-  - 背包：点右上角道具格使用（最右格高亮＝下次会用这个），
-    英雄机被限制不能进入顶部 UI 区，避免与点击冲突
-  - 皮肤：7 款皮肤按本机各难度最高分解锁，选中立即生效并持久化
-  - 存档：最高分与皮肤用 `SharedPreferences` 保存，结算时提示是否刷新纪录
+- `ui/visual/StarfieldView` —— 常驻的动态星空背景
+- `ui/visual/IntroOverlayView` —— 冷启动开场动画（只在 Activity 新建时播一次）
+- `ui/visual/MenuOverlayView` —— 二级弹出面板，绘制与点击命中共用同一套矩形，不会"画在这里、点在那里"
 
-已验证：编译通过、安装运行无崩溃（logcat 无 AndroidRuntime 异常）、
-菜单 → 对局 → 暂停 → 背包点击使用 → 结算 → 皮肤选择 全流程可用；
-音频加载无错误日志；22 项单元测试在改动后仍全部通过。
+| 皮肤选择 | 暂停 | 网络对战（实验五） |
+|---|---|---|
+| ![皮肤](docs/screenshots/skins.png) | ![暂停](docs/screenshots/paused.png) | ![对战](docs/screenshots/battle-room.png) |
 
-待完成：排行榜（暂缓）、网络对战（M5）、双人同屏界面（M6）。
+## 已实现的功能
+
+### 单机玩法（实验二～四）
+
+- **核心逻辑层**：`core/` **43 个类**，**零 Android 依赖**，22 项 JVM 单元测试全绿
+  （Boss / 炸弹 / 冰冻 / 背包 / 双人归属等规则与 Windows 版一致）
+- **渲染与主循环**：`SurfaceView` + 独立渲染线程，逻辑 **25Hz** + 渲染 60fps 插值
+- **界面**：主菜单（XML 布局）+ 三层自绘视觉 + 皮肤选择 + 排行榜 + 游戏内 HUD
+- **音效**：`SoundPool` 放 4 种音效、`MediaPlayer` 放 2 首 BGM，Boss 自动换曲；
+  实验三要求放 `res/raw`；音乐与音效**各自独立**开关（设置面板里）
+- **背包**：点右上角道具格使用（最右格高亮＝下次会用这个）；英雄机被限制不能进顶部 UI 区
+- **操作**：拖动控制（按下不移动、位移超阈值才跟随），避免小屏点道具时误判成移动
+- **排行榜**：`ListView` + 自定义 `BaseAdapter`（复用 `convertView` + `ViewHolder`），
+  第一名高亮，行末可删除，数据存 **SQLite**，按难度分开展示
+- **结算**：撞机 / 点返回键 / 暂停菜单里返回，都会**立刻结算**入库
+
+### 网络对战（实验五，已合入但不在验收范围）
+
+- 房间制**比分竞赛**：只同步分数与血量，胜负由服务端权威判定
+- 客户端：`net/BattleSession`（每秒上报、15s 心跳、断线重连）、`net/BattleRoomActivity`（创建/加入房间）
+- 服务端：`server/` 目录，Node.js + `ws`，含房间管理与 60 秒重连宽限
+- 附 `server/README.md` 说明如何启动
 
 ## 技术选型
 
 | 维度 | 选择 | 理由 |
 |------|------|------|
-| 语言 | **Java**（不用 Kotlin） | 源项目是 Java，可复用部分（实体模型、策略、工厂、观察者、DAO 逻辑）能几乎原样搬过来；改用 Kotlin 会平白增加重写量与两类语言的互操作成本 |
-| 渲染 | **SurfaceView + Canvas**，独立渲染线程 | 2D 逐帧重绘的标准做法；沿用 Windows 版已验证的「逻辑 25Hz + 渲染 60fps 插值」架构，手感一致 |
-| 主循环 | 独立线程 + `Choreographer` 对齐垂直同步 | 不占用主线程，避免 ANR；这是 Android 上替代 `javax.swing.Timer` 的正解 |
-| 输入 | `MotionEvent`（手指拖动跟随） | 触屏替代鼠标；暂停/切弹道改为界面按钮 |
-| 音效 | `SoundPool`（短音效）+ `MediaPlayer`（BGM） | 替代 `javax.sound.sampled.Clip` |
-| 本地存储 | `SharedPreferences` / `Room` | 替代 Java 对象序列化的 `.dat` 文件 |
-| 网络 | **OkHttp + WebSocket**，REST 走 Retrofit | ⚠️ Android **没有** `java.net.http`（源项目现用的 HttpClient），必须换掉 |
-| 后端 | 复用现有 Supabase（PostgREST），对战房间另起轻量服务 | 排行榜已成型可直接迁移；实时对战需要长连接，Supabase 不适合做帧同步中转 |
+| 语言 | **Java**（不用 Kotlin） | 源项目是 Java，可复用部分能原样搬；换 Kotlin 平白增加重写与互操作成本 |
+| 渲染 | **SurfaceView + Canvas**，独立渲染线程 | 2D 逐帧重绘标准做法；逻辑 25Hz + 渲染 60fps 插值 |
+| 输入 | `MotionEvent`（拖动跟随 + 位移阈值） | 触屏替代鼠标；阈值避免误触把飞机瞬移到顶部 |
+| 音效 | `SoundPool`（短音效）+ `MediaPlayer`（BGM），资源在 `res/raw` | 替代 `javax.sound.sampled.Clip` |
+| 本地存储 | `SharedPreferences`（单值）+ **SQLite**（排行榜） | 替代 Java 对象序列化的 `.dat`；排行榜要排序与删除，必须用结构化存储 |
+| 网络 | **OkHttp + WebSocket**，JSON 用 Gson | ⚠️ Android **没有** `java.net.http`，源项目的 HttpClient 必须替换 |
+| 贴图 | `res/drawable-nodpi`，3 倍分辨率，**碰撞框钉死逻辑尺寸** | 高清图不被系统按密度缩放；碰撞框与贴图分辨率解耦，换图不改玩法 |
 
-## 目录规划
+## 工程结构
 
 ```
-aircraftwar-android/
-├── app/src/main/java/edu/hitsz/aircraftwar/
-│   ├── core/         # 【可复用】从 Windows 版迁移的游戏内核（实体、策略、工厂、观察者）
-│   ├── render/       # 【新写】SurfaceView + 渲染线程 + 插值
-│   ├── input/        # 【新写】触屏处理
-│   ├── ui/           # 【新写】Activity / 菜单 / 排行榜界面
-│   ├── audio/        # 【新写】SoundPool / MediaPlayer 封装
-│   ├── data/         # 【新写】本地存储 + 云端 DAO（OkHttp 版）
-│   └── net/          # 【新写】WebSocket 对战协议、房间、同步
-├── app/src/main/assets/    # 图片与音频（沿用 src/images、src/videos）
-├── app/src/main/res/       # 布局、字符串、主题
-├── docs/                   # 实验文档
-└── README.md
+app/src/main/java/edu/hitsz/aircraftwar/
+├── core/          43 个类 —— 游戏规则（纯 Java，零 Android 依赖，可单测）
+├── render/         3 个类 —— SurfaceView 渲染、主循环、触屏、资源加载
+├── audio/          1 个类 —— SoundManager（SoundPool + MediaPlayer）
+├── data/           1 个类 —— LocalStore（SharedPreferences）
+├── db/             3 个类 —— 排行榜 SQLite（记录 / Helper / DAO）
+├── net/            4 个类 —— 网络对战（实验五）
+└── ui/            11 个类 —— Activity、Adapter、系统栏适配
+    └── visual/     5 个类 —— 自绘菜单、星空、开场动画、皮肤预览、渐变文字
+
+app/src/main/res/
+├── drawable-nodpi/    22 张游戏图片（全小写，禁止密度缩放）
+├── drawable/          矢量图标与按钮背景
+├── layout/            activity_main / activity_rank / item_rank
+├── raw/               7 个音频（bgm / bgm_boss / bullet_hit / bomb_explosion / get_supply / game_over / game_over_ori）
+└── values/            colors / strings / themes
+
+server/                Node.js + ws 对战服务端（实验五）
+docs/                  实验文档与截图
+guide/                 验收、上手、队友对接文档
 ```
 
-## 本地开发环境
+## 本地构建
 
-> 📍 **仓库必须放在纯 ASCII 路径下**，当前位于 `L:\android-projects\AircraftWar-Android`。
-> 放在中文目录时，AGP 会拒绝构建；即使加开关绕过检查，单元测试也会因
-> `ClassNotFoundException` 失败（已实测复现）。详见 [构建环境说明](docs/04-构建环境说明.md)。
-
-> ✅ **本机工具链已装齐并验证通过**：Android Studio 2025.3.1（Panda）+ 自带 JBR 21.0.9、
-> Android SDK（platform 35 / build-tools 35）、Gradle 8.11.1。
-> `assembleDebug` 与 `testDebugUnitTest` 均已实际跑通。
-
-命令行构建：
+> 📍 **仓库必须放在纯 ASCII 路径下**（当前 `L:\android-projects\AircraftWar-Android`）。
+> 放在中文目录时 AGP 会拒绝构建；即使绕过检查，单元测试也会 `ClassNotFoundException`（已实测）。
+> 详见 [构建环境说明](docs/04-构建环境说明.md)。
 
 ```powershell
-$env:JAVA_HOME = "L:\android-toolchain\android-studio\jbr"
+$env:JAVA_HOME    = "L:\android-toolchain\android-studio\jbr"   # AGP 8.x 支持上限是 JDK 21
+$env:ANDROID_HOME = "L:\android-sdk"
 cd L:\android-projects\AircraftWar-Android
+
+# 编译 + 跑单元测试
 & "L:\android-toolchain\gradle-8.11.1\bin\gradle.bat" assembleDebug --console=plain
 & "L:\android-toolchain\gradle-8.11.1\bin\gradle.bat" testDebugUnitTest --console=plain
+
+# 装到手机/模拟器
+& "L:\android-sdk\platform-tools\adb.exe" install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-尚未安装：模拟器与系统镜像（有真机则不必）。真机调试需在手机上开启「开发者选项 → USB 调试」，
-连上后 `adb devices` 确认。
+工具链：**Android Studio 2025.3.1（Panda）** + 自带 JBR 21、Android SDK 35、Gradle 8.11.1。
+`minSdk 33` / `targetSdk 35` / `compileSdk 35`，项目名 `AircraftWar2026`。
+
+> ⚠️ 仓库里没有 Gradle Wrapper。Android Studio 若提示生成，注意它会默认指向较新版本
+> （例如 Gradle 9），与本项目使用的 AGP 8.7.3 不匹配，可能构建失败。
+> 用本机已装好的 Gradle 8.11.1 即可。
+
+### 跑对战服务端（实验五，可选）
+
+```bash
+cd server
+npm install
+npm start          # 默认监听 8765
+```
+
+客户端默认连 `ws://10.0.2.2:8765`（模拟器访问宿主机），真机需要改成电脑的局域网 IP。
+
+## 分支约定
+
+| 分支 | 用途 |
+|---|---|
+| `main` | 主分支，验收以此为准 |
+| `feat/opening-animation` | 主菜单视觉改版（已合入 main） |
+| `feat/net-battle` | 网络对战（已合入 main） |
 
 ## 文档索引
 
-- [课程要求摘要](docs/00-课程要求摘要.md) — 从 `实验1.pdf` 提炼的实验安排、任务书要求、技术要点
-- [任务书](docs/01-任务书.md) — 实验一提交物（草稿，待补小组信息）
+### 实验文档（`docs/`）
+
+- [课程要求摘要](docs/00-课程要求摘要.md) — 从课件提炼的实验安排与技术要点
+- [任务书](docs/01-任务书.md) — 实验一提交物
 - [迁移分析](docs/02-迁移分析.md) — 逐模块的「可复用 / 需重新适配」判定与原因
+- [项目计划书](docs/03-项目计划书.md) — 范围决策与网络功能设计
+- [构建环境说明](docs/04-构建环境说明.md) — 工具链版本、ASCII 路径约束、构建命令
+- [AI 使用日志](docs/05-AI使用日志.md) — 求助内容、采纳与未采纳的建议
+- [实验二要求对照](docs/06-实验二要求对照.md) — 课件要求逐条自查
+- [实验三/四要求对照](docs/07-实验三四要求对照.md) — 含 Supabase 与 SQLite 的分工说明
+
+### 上手与验收（`guide/`）
+
+- [代码阅读指南](guide/01-代码阅读指南.md) — 通俗讲三层架构与核心设计决策
+- [使用教程](guide/02-使用教程.md) — 构建、安装、游玩、故障排查
+- [验收问答准备](guide/03-验收问答准备.md) — 常见提问与答法
+- [队友入手指南](guide/04-队友入手指南.md) — 网络对战开发的接入说明
+- [中期检查入手指南](guide/05-中期检查入手指南.md) — **四个实验**的课件知识点逐条对应到代码 + 演示脚本 + 30 个追问
 
 ## 与 Windows 版的关系
 
-Windows 版**继续维护**，作为迁移的对照基准与回退方案：
+Windows 版（`https://github.com/Stardropflower/aircraftwar`，private）继续维护，作为迁移的对照基准：
 
 - 它是本次迁移的**功能规格来源**（玩法、数值、Boss 规则、皮肤解锁等均已成型）
-- 迁移过程中若 Android 侧出现规则歧义，以 Windows 版行为为准
-- 两者共享同一套 Supabase 表结构，**全球排行榜可跨端互通**（Windows 玩家与 Android 玩家同榜）
+- Android 侧遇到规则歧义时，以 Windows 版行为为准
+- 两者共享同一套 Supabase 表结构，**云端排行榜可跨端互通**（后续实验）
