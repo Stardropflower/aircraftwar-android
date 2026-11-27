@@ -121,6 +121,13 @@ cd L:\android-projects\AircraftWar-Android
 工具链：**Android Studio 2025.3.1（Panda）** + 自带 JBR 21、Android SDK 35、Gradle 8.11.1。
 `minSdk 33` / `targetSdk 35` / `compileSdk 35`，项目名 `AircraftWar2026`。
 
+> 📱 **`minSdk 33` 意味着只能装在 Android 13 及以上**。在更旧的手机上安装会提示
+> 「解析软件包时出现问题」——不是安装包损坏。要在旧机上演示，用兼容构建：
+> ```bash
+> gradlew assembleDebug -PminSdkOverride=24    # 产出可装到 Android 7.0+
+> ```
+> 该参数只影响这一次构建，`build.gradle` 里的默认值仍是 33（课程要求）。
+
 > ⚠️ 仓库里没有 Gradle Wrapper。Android Studio 若提示生成，注意它会默认指向较新版本
 > （例如 Gradle 9），与本项目使用的 AGP 8.7.3 不匹配，可能构建失败。
 > 用本机已装好的 Gradle 8.11.1 即可。
