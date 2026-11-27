@@ -2,6 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
+// 默认按课程要求取 33（Android 13）。
+// 要让 Android 13 以下的旧手机 / 旧模拟器也能安装演示，可临时构建兼容包：
+//     gradlew assembleDebug -PminSdkOverride=24
+// 只影响这一次构建产物，不改变仓库里的默认值。
+def sdkMin = (project.findProperty('minSdkOverride') ?: '33').toString().toInteger()
+
 android {
     namespace 'edu.hitsz.aircraftwar'
     compileSdk 35
@@ -9,7 +15,7 @@ android {
     defaultConfig {
         applicationId "edu.hitsz.aircraftwar"
         // 课程要求：支持的最小 API 级别在 33~35 之间，取 33（Android 13）
-        minSdk 33
+        minSdk sdkMin
         targetSdk 35
         versionCode 1
         versionName "0.1.0"
