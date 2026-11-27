@@ -42,6 +42,9 @@ public class MenuOverlayView extends View implements Choreographer.FrameCallback
     public interface Listener {
         void onStartGame(Difficulty difficulty);
 
+        /** 选择了「联机对战」：由宿主打开对战房间页（实验五） */
+        void onBattle();
+
         void onDismiss();
     }
 
@@ -84,6 +87,8 @@ public class MenuOverlayView extends View implements Choreographer.FrameCallback
     private boolean finished;
     private long shakeStartNanos;
     private Difficulty pendingStart;
+    /** 选了「联机对战」：面板收完后通知宿主打开房间页 */
+    private boolean pendingBattle;
 
     public MenuOverlayView(Context context) {
         this(context, null);
@@ -189,8 +194,11 @@ public class MenuOverlayView extends View implements Choreographer.FrameCallback
         if (listener == null) {
             return;
         }
-        // 选了难度就先等面板收完再开打，直接切走会让退场动画看不见
-        if (pendingStart != null) {
+        // 选了难度/对战就先等面板收完再切走，否则退场动画看不见
+        if (pendingBattle) {
+            pendingBattle = false;
+            listener.onBattle();
+        } else if (pendingStart != null) {
             Difficulty target = pendingStart;
             pendingStart = null;
             listener.onStartGame(target);
@@ -360,7 +368,7 @@ public class MenuOverlayView extends View implements Choreographer.FrameCallback
 
     private void drawStartContent(Canvas canvas, int alpha, float ease) {
         drawModeCard(canvas, 0, "单机模式", "三档难度 · 本地最高分", heroBitmap, ACCENT, alpha, ease, false);
-        drawModeCard(canvas, 1, "联机对战", "双人房间 · 实时比分", bossBitmap, TEXT_MUTED, alpha, ease, true);
+        drawModeCard(canvas, 1, "联机对战", "双人房间 · 实时比分", bossBitmap, ACCENT, alpha, ease, false);
     }
 
     private void drawModeCard(Canvas canvas, int index, String title, String subtitle,
@@ -607,9 +615,9 @@ public class MenuOverlayView extends View implements Choreographer.FrameCallback
                 mode = Mode.DIFFICULTY;
                 invalidate();
             } else {
-                // 对战还没做：抖一下告诉用户点了但不可用，比弹 Toast 轻
-                shakeStartNanos = System.nanoTime();
-                invalidate();
+                // 联机对战：面板收完后交给宿主打开对战房间页
+                pendingBattle = true;
+                dismiss();
             }
         } else if (mode == Mode.DIFFICULTY) {
             Difficulty[] values = {Difficulty.EASY, Difficulty.NORMAL, Difficulty.HARD};

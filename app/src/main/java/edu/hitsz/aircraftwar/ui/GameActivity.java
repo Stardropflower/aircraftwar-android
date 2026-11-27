@@ -9,6 +9,7 @@ import android.os.Message;
 import android.util.Log;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -37,6 +38,7 @@ import edu.hitsz.aircraftwar.core.world.PlayField;
 import edu.hitsz.aircraftwar.data.LocalStore;
 import edu.hitsz.aircraftwar.db.ScoreDao;
 import edu.hitsz.aircraftwar.db.ScoreRecord;
+import edu.hitsz.aircraftwar.net.BattleSession;
 import edu.hitsz.aircraftwar.render.Assets;
 import edu.hitsz.aircraftwar.render.GameSurfaceView;
 
@@ -54,6 +56,8 @@ public class GameActivity extends AppCompatActivity {
     public static final String EXTRA_DIFFICULTY = "difficulty";
     /** 调试用：开局直接在英雄机位置放两个道具，便于验证背包。仅 DEBUG 包生效。 */
     public static final String EXTRA_DEBUG_GRANT = "debug_grant";
+    /** 网络对战模式开关：为 true 时本局走「比分竞赛」逻辑。 */
+    public static final String EXTRA_BATTLE = "battle";
 
     /**
      * 顶部 UI 占用高度（逻辑单位）：得分卡 12~88、难度胶囊 14~38、背包格 12~78。
@@ -80,12 +84,28 @@ public class GameActivity extends AppCompatActivity {
     /** 本局是否刷新了本机最高分（用于结算提示） */
     private boolean newRecord = false;
 
+    /** 是否网络对战局 */
+    private boolean battleMode;
+    private BattleSession session;
+    private Handler reporterHandler;
+    private Runnable reporter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         enterFullscreen();
 
         difficulty = readDifficulty();
+
+        battleMode = getIntent() != null && getIntent().getBooleanExtra(EXTRA_BATTLE, false);
+        if (battleMode) {
+            // 对战局的难度由房间决定（进房方从服务端的 joined 消息里拿到），
+            // 这里用会话里已同步好的难度覆盖本地传入值，保证两人玩同一难度。
+            session = BattleSession.getInstance();
+            if (session.getDifficulty() != null) {
+                difficulty = session.getDifficulty();
+            }
+        }
 
         // 1) 资源与精灵尺寸必须先装好，核心层创建实体时要向它问宽高
         Assets assets = Assets.load(this);
@@ -146,6 +166,10 @@ public class GameActivity extends AppCompatActivity {
                 settleAndFinish();
             }
         });
+
+        if (battleMode) {
+            setupBattle();
+        }
     }
 
     /**
@@ -256,6 +280,11 @@ public class GameActivity extends AppCompatActivity {
      * 由 {@link GameHandler#handleMessage} 在主线程执行界面更新。
      */
     private void onGameOver(int score) {
+        if (battleMode) {
+            // 对战局：本机阵亡，上报 hp=0 等对手结束，不写排行榜
+            handler.post(() -> onBattleLocalGameOver(score));
+            return;
+        }
         Message message = Message.obtain();
         message.what = MSG_GAME_OVER;
         message.arg1 = score;          // 用 arg1 携带分数，省去额外对象
@@ -284,7 +313,9 @@ public class GameActivity extends AppCompatActivity {
      */
     private void settleAndFinish() {
         if (!isFinishing()) {
-            saveScore(world == null ? 0 : world.totalScore());
+            if (!battleMode) {
+                saveScore(world == null ? 0 : world.totalScore());
+            }
         }
         finish();
     }
@@ -318,6 +349,130 @@ public class GameActivity extends AppCompatActivity {
         intent.putExtra(RankActivity.EXTRA_DIFFICULTY, difficulty.name());
         startActivity(intent);
         finish();
+    }
+
+    // ---------------- 网络对战 ----------------
+
+    /** 挂上会话回调、启动每秒上报、把初始对手信息画出来。 */
+    private void setupBattle() {
+        session.setListener(createBattleListener());
+        refreshOpponentInfo();
+        startBattleReporting();
+    }
+
+    private BattleSession.Listener createBattleListener() {
+        return new BattleSession.Listener() {
+            @Override
+            public void onState(String youName, String oppName,
+                                int youScore, int youHp, int oppScore, int oppHp) {
+                refreshOpponentInfo(oppName, oppScore, oppHp);
+            }
+
+            @Override
+            public void onOver(boolean win, int scoreA, int scoreB, String reason) {
+                onBattleOver(win, scoreA, scoreB, reason);
+            }
+
+            @Override
+            public void onOpponentLeft() {
+                onBattleOpponentLeft();
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(GameActivity.this,
+                        message == null ? "出错了" : message, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onDisconnected() {
+                Toast.makeText(GameActivity.this, "连接断开，正在重连…",
+                        Toast.LENGTH_SHORT).show();
+            }
+        };
+    }
+
+    /** 每秒用主线程 Handler 上报一次分数/血量（网络 IO 绝不能放在渲染线程里）。 */
+    private void startBattleReporting() {
+        reporterHandler = new Handler(Looper.getMainLooper());
+        reporter = new Runnable() {
+            @Override
+            public void run() {
+                if (session != null && world != null) {
+                    int hp = world.isGameOver() ? 0 : world.getHero(0).getHp();
+                    session.reportScore(world.totalScore(), hp);
+                }
+                if (reporterHandler != null && reporter != null) {
+                    reporterHandler.postDelayed(this, 1000);
+                }
+            }
+        };
+        reporterHandler.post(reporter);
+    }
+
+    private void stopBattleReporting() {
+        if (reporterHandler != null && reporter != null) {
+            reporterHandler.removeCallbacks(reporter);
+        }
+    }
+
+    private void refreshOpponentInfo() {
+        refreshOpponentInfo(session.getOpponentName(), session.getOppScore(), session.getOppHp());
+    }
+
+    private void refreshOpponentInfo(String oppName, int oppScore, int oppHp) {
+        if (gameView == null) {
+            return;
+        }
+        if (oppName == null || oppName.isEmpty()) {
+            gameView.setOpponentInfo("等待对手加入…");
+        } else {
+            gameView.setOpponentInfo("对手 " + oppName
+                    + "　得分 " + oppScore
+                    + "　生命 " + oppHp + "/" + HeroAircraft.MAX_HP);
+        }
+    }
+
+    /** 本机阵亡：上报一次 hp=0 让服务端知道，然后等待服务端判定胜负。 */
+    private void onBattleLocalGameOver(int score) {
+        stopBattleReporting();
+        if (session != null) {
+            session.reportScore(score, 0);
+        }
+        if (gameView != null) {
+            gameView.setOpponentInfo("你已阵亡 · 等待对手结束…");
+        }
+        Toast.makeText(this, "你已阵亡，等待对手结束…", Toast.LENGTH_LONG).show();
+    }
+
+    private void onBattleOver(boolean win, int scoreA, int scoreB, String reason) {
+        stopBattleReporting();
+        String mySlot = session == null ? null : session.getMySlot();
+        int myScore = "A".equals(mySlot) ? scoreA : scoreB;
+        int oppScore = "A".equals(mySlot) ? scoreB : scoreA;
+        String opponent = session == null ? null : session.getOpponentName();
+        String message = "你的得分：" + myScore
+                + "\n对手" + (opponent == null || opponent.isEmpty() ? "" : "「" + opponent + "」")
+                + "得分：" + oppScore
+                + (reason == null || reason.isEmpty() ? "" : "\n（" + reason + "）");
+        // 双方同分 = 平局（服务端 winner 为 null）
+        String title = (scoreA == scoreB) ? "平局" : (win ? "你赢了！" : "你输了");
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton("返回", (dialog, which) -> finish())
+                .show();
+    }
+
+    private void onBattleOpponentLeft() {
+        stopBattleReporting();
+        new AlertDialog.Builder(this)
+                .setTitle("对手已离开")
+                .setMessage("对手掉线或退出，你获胜！")
+                .setCancelable(false)
+                .setPositiveButton("返回", (dialog, which) -> finish())
+                .show();
     }
 
     /**
@@ -392,6 +547,13 @@ public class GameActivity extends AppCompatActivity {
         }
         if (scoreDao != null) {
             scoreDao.close();
+        }
+        if (battleMode) {
+            stopBattleReporting();
+            if (session != null) {
+                // 通知服务端退出（若仍在局内）并关闭连接
+                session.leave();
+            }
         }
         super.onDestroy();
     }

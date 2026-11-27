@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 网络对战需要访问网络 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
@@ -40,6 +43,13 @@
             android:screenOrientation="portrait"
             android:label="@string/rank_title"
             android:parentActivityName=".ui.MainActivity" />
+
+        <!-- 实验五：网络对战（房间创建/加入） -->
+        <activity
+            android:name=".net.BattleRoomActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AircraftWar.Fullscreen" />
 
     </application>
 

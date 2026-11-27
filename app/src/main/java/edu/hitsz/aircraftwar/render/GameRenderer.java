@@ -66,12 +66,24 @@ public class GameRenderer {
     private final Rect src = new Rect();
     private final RectF dst = new RectF();
 
+    /**
+     * 网络对战里显示在 HUD 上的对手信息。
+     * <p>由主线程通过 {@link #setOpponentInfo} 写入，渲染线程读取。只是一次简单赋值，
+     * 用 {@code volatile} 保证可见性即可，不需要加锁（也绝不能在这里改渲染线程正在用的集合）。
+     */
+    private volatile String opponentText;
+
     public GameRenderer(Assets assets) {
         this.assets = assets;
         strokePaint.setStyle(Paint.Style.STROKE);
         strokePaint.setStrokeWidth(1.2f);
         textPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         fillPaint.setStyle(Paint.Style.FILL);
+    }
+
+    /** 网络对战：设置要显示在 HUD 上的对手信息；传 null 表示不显示。 */
+    public void setOpponentInfo(String text) {
+        this.opponentText = text;
     }
 
     /**
@@ -159,6 +171,7 @@ public class GameRenderer {
         drawPauseButton(canvas);
         drawBackpack(canvas, world);
         drawDifficultyChip(canvas, world);
+        drawOpponentInfo(canvas);
     }
 
     /** 返回主菜单按钮（左上角第二个位置） */
@@ -300,6 +313,24 @@ public class GameRenderer {
         drawPanel(canvas, x, y, w, h, h, 0xBE080C12, (color & 0x00FFFFFF) | 0xCD000000);
         textPaint.setColor(color);
         canvas.drawText(name, x + 13, y + h - 8, textPaint);
+    }
+
+    /**
+     * 网络对战的对手信息：画在得分卡下方（顶部 UI 条带内），
+     * 有内容才画，避免单机模式出现多余的空面板。
+     */
+    private void drawOpponentInfo(Canvas canvas) {
+        String text = opponentText;
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        float x = 12, y = 96, w = 220, h = 26;
+        drawPanel(canvas, x, y, w, h, 10, PANEL_BG, BORDER);
+
+        textPaint.setTextAlign(Paint.Align.LEFT);
+        textPaint.setTextSize(12);
+        textPaint.setColor(ACCENT);
+        canvas.drawText(text, x + 12, y + 18, textPaint);
     }
 
     // ---------------- 通用绘制 ----------------

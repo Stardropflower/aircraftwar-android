@@ -16,6 +16,7 @@ import edu.hitsz.aircraftwar.R;
 import edu.hitsz.aircraftwar.core.aircraft.HeroAircraft;
 import edu.hitsz.aircraftwar.core.data.Difficulty;
 import edu.hitsz.aircraftwar.data.LocalStore;
+import edu.hitsz.aircraftwar.net.BattleRoomActivity;
 import edu.hitsz.aircraftwar.ui.visual.IntroOverlayView;
 import edu.hitsz.aircraftwar.ui.visual.MenuOverlayView;
 import edu.hitsz.aircraftwar.ui.visual.StarfieldView;
@@ -127,6 +128,12 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onBattle() {
+                panel = null;
+                openBattlePage();
+            }
+
+            @Override
             public void onDismiss() {
                 panel = null;
             }
@@ -223,6 +230,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void openRankPage() {
         startActivity(new Intent(this, RankActivity.class));
+    }
+
+    /** 联机对战（实验五）：打开房间页创建或加入房间 */
+    private void openBattlePage() {
+        startActivity(new Intent(this, BattleRoomActivity.class));
     }
 
     /** 离开页面时保存昵称，避免为了存名字而多弹一次确认框 */
