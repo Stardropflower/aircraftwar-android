@@ -4,6 +4,25 @@
 
 ## 一、启动
 
+### 方式 A：双击 `start-server.bat`（Windows 推荐）
+
+不用敲任何命令。它会依次检查 Node.js、自动 `npm install`、检查端口占用，
+最后**直接打印出手机该填的地址**：
+
+```
+---------- 手机里「服务器地址」填下面这一条 ----------
+      ws://192.168.56.1:8765   [以太网 5]
+      ws://10.250.115.81:8765   [以太网 3]   (手机填这个)
+
+  标了「手机填这个」的那条就是，其余可能是虚拟网卡或 VPN，别用。
+```
+
+标了「手机填这个」的那条，就是系统默认路由走的那张网卡——把整行抄进手机即可。
+
+换端口：`start-server.bat 9000`。
+
+### 方式 B：手动命令
+
 ```bash
 cd server
 npm install      # 只需要装一次（会生成 node_modules）
@@ -16,14 +35,23 @@ npm start        # 启动，监听 8765 端口
 飞机大战对战服务端已启动：ws://0.0.0.0:8765
 ```
 
-想换端口（比如 8765 被占用）：
+换端口（**注意不同终端语法不同**，`PORT=9000 npm start` 是 Linux/macOS 写法）：
 
-```bash
-PORT=9000 npm start      # 改成 9000
-```
+| 终端 | 命令 |
+|---|---|
+| PowerShell | `$env:PORT=9000; npm.cmd start` |
+| cmd | `set PORT=9000 && npm start` |
+| 任意 | `start-server.bat 9000` |
 
 > ⚠️ 注意：换了端口后，**客户端也要改成同一个端口**。客户端在「网络对战」页的
 > 「服务器地址」一栏直接改即可（例如 `ws://10.0.2.2:9000`），不用重新编译。
+
+> 🔧 **PowerShell 报「`npm.ps1` 因为在此系统上禁止运行脚本」？**
+> 这是 Windows PowerShell 的执行策略（默认 `Restricted`）拦住了 `npm.ps1`，
+> 与 npm、与本项目都无关。三选一：
+> 1. `npm.cmd start` —— 直接绕开 `npm.ps1`；
+> 2. `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` —— 一次放开，**不需要管理员**；
+> 3. 双击 `start-server.bat` —— cmd 环境不受这条策略影响。
 
 ## 二、客户端怎么连到服务端
 

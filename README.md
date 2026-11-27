@@ -130,7 +130,7 @@ cd L:\android-projects\AircraftWar-Android
 前提：**两台手机和跑服务端的电脑在同一个 WiFi / 局域网**。
 
 ```bash
-# 1. 电脑上启动服务端
+# 1. 电脑上启动服务端（Windows 直接双击 server\start-server.bat 更省事）
 cd server
 npm install        # 只需第一次
 npm start          # 监听 8765，看到「ws://0.0.0.0:8765」即成功
@@ -138,6 +138,11 @@ npm start          # 监听 8765，看到「ws://0.0.0.0:8765」即成功
 # 2. 查电脑的局域网 IP
 ipconfig           # 找「IPv4 地址」，例如 10.250.115.81
 ```
+
+> Windows 上双击 `server\start-server.bat` 可一步到位：自动装依赖、检查端口，
+> 并直接打印出手机该填的那条 `ws://…`（标了「手机填这个」）。
+> 若 PowerShell 报 `npm.ps1 因为在此系统上禁止运行脚本`，改用 `npm.cmd start`，
+> 或 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`（不需要管理员）。
 
 3. 两台手机上进入 **开始游戏 → 联机对战**，把「服务器地址」改成
    `ws://<电脑IP>:8765`（填过一次会自动记住）
