@@ -13,6 +13,7 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.Choreographer;
 import android.view.MotionEvent;
@@ -23,9 +24,14 @@ import android.widget.TextView;
 import edu.hitsz.aircraftwar.R;
 
 /**
- * 开场动画：
- * 黑场亮起 → 扫描线展开 → 星点迸发 → 蓝色飞机浮现（下方英文名）→ 高光扫过
- * → 飞机带着英文名飞向页头 → 横向翻转成「飞机大战」→ 交还菜单。
+ * 开场动画分两幕：
+ * <ol>
+ *   <li><b>加载幕</b>（黑屏）：同一架飞机和英文名用射线扫出来。
+ *       一道扫描光从左往右、从下往上走过，字形和机身先是一缕缕射线，再合成实体。
+ *       这一段的做法对齐瓦罗兰特进游戏时的加载：黑底、几何射线、扫描光把标志「印」出来。</li>
+ *   <li><b>衔接幕</b>：黑场褪掉，露出底下的星空；英文名消失；
+ *       飞机停在原来那一幕的起点，接着向上滑、翻转成「飞机大战」。</li>
+ * </ol>
  * <p>
  * 设计上四件事值得说：
  * <ol>
@@ -56,12 +62,8 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
     private static final float T_BURST_END = 900f;
     private static final float T_PLANE = 380f;          // 飞机浮现
     private static final float T_PLANE_END = 1020f;
-    private static final float T_EN = 620f;             // 英文名淡入
-    private static final float T_EN_END = 1120f;
     private static final float T_SWEEP = 1120f;         // 高光扫过机身
     private static final float T_SWEEP_END = 1640f;
-    private static final float T_EN_OUT = 1700f;        // 英文名随起飞淡出
-    private static final float T_EN_OUT_END = 1960f;
     private static final float T_TRAVEL = 1720f;        // 飞向页头
     private static final float T_TRAVEL_END = 2120f;
     private static final float T_FLIP_OUT = 2120f;      // 翻转：飞机压扁
@@ -74,6 +76,19 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
     private static final float T_CROSS_END = 2500f;
     private static final float T_END = 2520f;
 
+    /**
+     * 加载幕的时间点。到 {@link #T_PRELUDE} 时飞机已经完整停在画面中央、英文已消失、
+     * 黑场已褪完，主时间轴从 {@link #T_TRAVEL} 接着走，所以不会再把飞机淡入一次。
+     */
+    private static final float T_SCAN_IN = 180f;
+    private static final float T_SCAN_END = 1560f;
+    private static final float T_HOLD_END = 1960f;
+    private static final float T_BG_IN = 1960f;
+    private static final float T_BG_END = 2420f;
+    private static final float T_WORD_OUT = 2420f;
+    private static final float T_WORD_OUT_END = 2860f;
+    private static final float T_PRELUDE = 3020f;
+
     private static final String EN_NAME = "AIRCRAFT WAR";
 
     private static final int ACCENT = 0xFF3EC8FF;
@@ -85,8 +100,11 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
     private final Paint planeWhitePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Paint glowPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint enPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint loadTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint beamPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint beamGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint.FontMetrics fontMetrics = new Paint.FontMetrics();
+    private final Paint.FontMetrics loadMetrics = new Paint.FontMetrics();
 
     private final float density;
 
@@ -137,6 +155,17 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
         // 翻面用的「白色版」机身：把剪影整体染白，用来画扫光
         planeWhitePaint.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
 
+        beamPaint.setStyle(Paint.Style.STROKE);
+        beamPaint.setStrokeCap(Paint.Cap.SQUARE);
+        beamGlowPaint.setStyle(Paint.Style.STROKE);
+        beamGlowPaint.setStrokeCap(Paint.Cap.SQUARE);
+        beamGlowPaint.setMaskFilter(new BlurMaskFilter(7f * density, BlurMaskFilter.Blur.NORMAL));
+
+        loadTextPaint.setColor(Color.WHITE);
+        loadTextPaint.setFakeBoldText(true);
+        loadTextPaint.setTextSize(15f * density);
+        loadTextPaint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+
         for (int i = 0; i < DOT_COUNT; i++) {
             // 黄金角散开，比纯随机更均匀，不会扎堆
             dotAngle[i] = (float) (i * 2.39996) % 6.283f;
@@ -164,10 +193,6 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
         titlePaint.setShader(new LinearGradient(0f, -title.getTextSize() * 0.85f,
                 0f, title.getTextSize() * 0.30f,
                 0xFFFFFFFF, 0xFF78C6F0, Shader.TileMode.CLAMP));
-
-        enPaint.setTextSize(13f * density);
-        enPaint.setColor(ACCENT);
-        enPaint.setFakeBoldText(true);
 
         buildPlane();
     }
@@ -314,7 +339,7 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
         if (startNanos == 0L) {
             startNanos = nanos;
         }
-        if (freezeMs < 0f && timeMs() >= T_END) {
+        if (freezeMs < 0f && mainMs() >= T_END) {
             finish();
             return;
         }
@@ -330,6 +355,17 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
             return 0f;
         }
         return (frameNanos - startNanos) / 1_000_000f;
+    }
+
+    /**
+     * 衔接幕用的时间。加载幕还没结束时返回 -1，结束后从「飞机已经就位、正要起飞」接着走。
+     */
+    private float mainMs() {
+        float t = timeMs();
+        if (t < T_PRELUDE) {
+            return -1f;
+        }
+        return T_TRAVEL + (t - T_PRELUDE);
     }
 
     // ---------------- 几何 ----------------
@@ -379,11 +415,252 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
             finalCy = h * 0.19f;
         }
 
-        drawCover(canvas, t, w, h);
-        drawScanLine(canvas, t);
-        drawBurst(canvas, t);
-        drawHeroSequence(canvas, t);
-        syncMenuText(t);
+        float main = mainMs();
+        if (main >= 0f) {
+            drawCover(canvas, main, w, h);
+            drawScanLine(canvas, main);
+            drawBurst(canvas, main);
+            drawHeroSequence(canvas, main);
+            syncMenuText(main);
+        }
+        if (t < T_PRELUDE) {
+            drawPrelude(canvas, t, w, h);
+        }
+    }
+
+    // ---------------- 加载幕：黑屏，射线扫出飞机和英文 ----------------
+
+    private void drawPrelude(Canvas canvas, float t, float w, float h) {
+        float reveal = easeInOutCubic(clamp01((t - T_SCAN_IN) / (T_SCAN_END - T_SCAN_IN)));
+        float merge = easeOutCubic(clamp01((t - T_SCAN_END) / (T_HOLD_END - T_SCAN_END)));
+        float bg = easeInOutCubic(clamp01((t - T_BG_IN) / (T_BG_END - T_BG_IN)));
+        float wordFade = 1f - easeOutCubic(clamp01((t - T_WORD_OUT) / (T_WORD_OUT_END - T_WORD_OUT)));
+
+        if (bg < 1f) {
+            coverPaint.setColor(Color.BLACK);
+            coverPaint.setAlpha((int) (255 * (1f - bg)));
+            canvas.drawRect(0f, 0f, w, h, coverPaint);
+        }
+
+        float bob = preludeBob(t);
+        float cy = heroY + bob;
+        drawLoadPlane(canvas, reveal, merge, cy);
+        if (wordFade > 0f) {
+            drawLoadWord(canvas, t, reveal, merge, wordFade, cy);
+        }
+        drawLoadFrame(canvas, t, reveal, 1f - bg, cy);
+    }
+
+    /** 起飞前的轻微浮动，最后一段收到衔接幕第一帧的位置，避免交接时跳一下 */
+    private float preludeBob(float t) {
+        float idle = (float) Math.sin(t * 0.0032) * 4f * density;
+        float handoff = (float) Math.sin(T_TRAVEL * 0.0032) * 5f * density;
+        float blend = clamp01((t - (T_PRELUDE - 280f)) / 280f);
+        return idle * (1f - blend) + handoff * blend;
+    }
+
+    private void drawLoadPlane(Canvas canvas, float reveal, float merge, float cy) {
+        if (planeBitmap == null || reveal <= 0f) {
+            return;
+        }
+        float scale = heroPlaneScale;
+        float pw = planeBitmap.getWidth();
+        float ph = planeBitmap.getHeight();
+        float shownTop = ph / 2f - ph * reveal;
+
+        canvas.save();
+        canvas.translate(heroX, cy);
+        canvas.scale(scale, scale);
+        canvas.clipRect(-pw / 2f - 8f, shownTop, pw / 2f + 8f, ph / 2f + 8f);
+
+        if (planeGlow != null && merge > 0.35f) {
+            glowPaint.setAlpha((int) (200 * merge));
+            canvas.drawBitmap(planeGlow,
+                    -planeGlow.getWidth() / 2f, -planeGlow.getHeight() / 2f, glowPaint);
+        }
+
+        planePaint.setAlpha(255);
+        if (merge >= 0.98f) {
+            canvas.drawBitmap(planeBitmap, -pw / 2f, -ph / 2f, planePaint);
+        } else {
+            float gap = 5.5f / Math.max(scale, 0.01f);
+            float band = gap * (0.38f + 0.62f * merge);
+            float top = -ph / 2f;
+            for (float y = top; y < ph / 2f; y += gap) {
+                canvas.save();
+                canvas.clipRect(-pw, y, pw, y + band);
+                canvas.drawBitmap(planeBitmap, -pw / 2f, -ph / 2f, planePaint);
+                canvas.restore();
+            }
+        }
+        canvas.restore();
+
+        if (reveal < 1f) {
+            float rayY = cy + scale * shownTop;
+            float half = scale * pw * 0.78f;
+            drawBeam(canvas, heroX - half, rayY, heroX + half, rayY, 220);
+            drawWingTicks(canvas, heroX, cy, scale, pw, ph, reveal);
+        }
+    }
+
+    /** 机翼两侧甩出的短射线，扫描经过时亮一下 */
+    private void drawWingTicks(Canvas canvas, float cx, float cy, float scale,
+                               float pw, float ph, float reveal) {
+        float y = cy + scale * (ph / 2f - ph * reveal);
+        float reach = 18f * density * (float) Math.sin(Math.PI * reveal);
+        float wing = scale * pw * 0.46f;
+        beamPaint.setColor(Color.WHITE);
+        beamPaint.setAlpha(180);
+        beamPaint.setStrokeWidth(1.1f * density);
+        canvas.drawLine(cx - wing, y, cx - wing - reach, y - reach * 0.65f, beamPaint);
+        canvas.drawLine(cx + wing, y, cx + wing + reach, y - reach * 0.65f, beamPaint);
+    }
+
+    private void drawLoadWord(Canvas canvas, float t, float reveal, float merge,
+                              float wordFade, float planeCy) {
+        if (planeBitmap == null) {
+            return;
+        }
+        float tracking = 4.2f * density;
+        float wordW = measureTracked(EN_NAME, tracking, loadTextPaint);
+        float maxW = getWidth() * 0.86f;
+        if (wordW > maxW && wordW > 0f) {
+            tracking *= maxW / wordW;
+            wordW = maxW;
+        }
+
+        loadTextPaint.getFontMetrics(loadMetrics);
+        float textH = loadMetrics.descent - loadMetrics.ascent;
+        float baseline = planeCy + planeBitmap.getHeight() * heroPlaneScale * 0.5f + 36f * density;
+        float top = baseline + loadMetrics.ascent;
+        float left = heroX - wordW / 2f;
+        float edge = left + wordW * reveal;
+
+        drawConstructionRules(canvas, t, left, top, wordW, textH, merge, wordFade);
+
+        int alpha = (int) (255 * wordFade);
+        if (alpha <= 0 || reveal <= 0f) {
+            return;
+        }
+        loadTextPaint.setAlpha(alpha);
+
+        canvas.save();
+        canvas.clipRect(left - 4f, top - 6f, Math.max(edge, left), baseline + loadMetrics.descent + 6f);
+        if (merge < 0.98f) {
+            float gap = 3.4f * density;
+            float band = gap * (0.42f + 0.58f * merge);
+            for (float y = top - 2f; y < baseline + 4f; y += gap) {
+                canvas.save();
+                canvas.clipRect(left - 4f, y, edge + 4f, y + band);
+                drawTracked(canvas, EN_NAME, heroX, baseline, tracking, loadTextPaint);
+                canvas.restore();
+            }
+        } else {
+            drawTracked(canvas, EN_NAME, heroX, baseline, tracking, loadTextPaint);
+        }
+        canvas.restore();
+
+        if (reveal < 1f) {
+            float beamTop = top - 10f * density;
+            float beamBot = baseline + 8f * density;
+            drawBeam(canvas, edge, beamTop, edge, beamBot, (int) (230 * wordFade));
+            drawComposingRays(canvas, edge, top, textH, reveal);
+        }
+
+        float ruleY = baseline + 10f * density;
+        beamPaint.setColor(ACCENT);
+        beamPaint.setAlpha((int) (200 * wordFade * Math.min(1f, reveal * 1.4f)));
+        beamPaint.setStrokeWidth(1.4f * density);
+        canvas.drawLine(left, ruleY, left + wordW * reveal, ruleY, beamPaint);
+    }
+
+    /** 字形上下两条定位线，先拉开，合成后又收回 */
+    private void drawConstructionRules(Canvas canvas, float t, float left, float top,
+                                       float wordW, float textH, float merge, float wordFade) {
+        float open = easeOutCubic(clamp01((t - 40f) / 420f));
+        float retract = 1f - merge * 0.85f;
+        float span = wordW * 0.5f * open * Math.max(retract, 0.15f);
+        if (span <= 1f || wordFade <= 0f) {
+            return;
+        }
+        float y0 = top - 8f * density;
+        float y1 = top + textH + 8f * density;
+        beamPaint.setColor(ACCENT);
+        beamPaint.setAlpha((int) (90 * wordFade * open));
+        beamPaint.setStrokeWidth(1f * density);
+        canvas.drawLine(heroX - span, y0, heroX + span, y0, beamPaint);
+        canvas.drawLine(heroX - span, y1, heroX + span, y1, beamPaint);
+    }
+
+    /** 扫描光经过时，从光边上甩出几道短射线，像在把字母刻出来 */
+    private void drawComposingRays(Canvas canvas, float edge, float top, float textH, float reveal) {
+        beamPaint.setColor(Color.WHITE);
+        beamPaint.setStrokeWidth(1f * density);
+        for (int i = 0; i < 5; i++) {
+            float phase = (reveal * 3.2f + i * 0.37f) % 1f;
+            float len = (10f + 16f * phase) * density;
+            float y = top + textH * (0.12f + 0.18f * i);
+            int alpha = (int) (160 * (1f - phase));
+            beamPaint.setAlpha(alpha);
+            float dir = (i % 2 == 0) ? 1f : -1f;
+            canvas.drawLine(edge, y, edge + dir * len, y - len * 0.35f, beamPaint);
+        }
+    }
+
+    /** 飞机四周的四角框，黑场还在时收拢，背景亮起后散掉 */
+    private void drawLoadFrame(Canvas canvas, float t, float reveal, float black, float cy) {
+        if (planeBitmap == null || black <= 0.02f || reveal <= 0f) {
+            return;
+        }
+        float grow = easeOutCubic(clamp01((t - 80f) / 480f));
+        float pw = planeBitmap.getWidth() * heroPlaneScale;
+        float ph = planeBitmap.getHeight() * heroPlaneScale;
+        float halfW = pw * 0.62f + 18f * density;
+        float halfH = ph * 0.62f + 14f * density;
+        float len = 14f * density * grow * black;
+        if (len <= 0.5f) {
+            return;
+        }
+        beamPaint.setColor(Color.WHITE);
+        beamPaint.setAlpha((int) (150 * black));
+        beamPaint.setStrokeWidth(1.3f * density);
+        float l = heroX - halfW;
+        float r = heroX + halfW;
+        float top = cy - halfH;
+        float bot = cy + halfH;
+        drawCorner(canvas, l, top, len, len);
+        drawCorner(canvas, r, top, -len, len);
+        drawCorner(canvas, l, bot, len, -len);
+        drawCorner(canvas, r, bot, -len, -len);
+    }
+
+    private void drawCorner(Canvas canvas, float x, float y, float dx, float dy) {
+        canvas.drawLine(x, y, x + dx, y, beamPaint);
+        canvas.drawLine(x, y, x, y + dy, beamPaint);
+    }
+
+    private void drawBeam(Canvas canvas, float x0, float y0, float x1, float y1, int alpha) {
+        beamGlowPaint.setColor(ACCENT);
+        beamGlowPaint.setAlpha((int) (alpha * 0.55f));
+        beamGlowPaint.setStrokeWidth(5f * density);
+        canvas.drawLine(x0, y0, x1, y1, beamGlowPaint);
+
+        beamPaint.setColor(Color.WHITE);
+        beamPaint.setAlpha(alpha);
+        beamPaint.setStrokeWidth(1.3f * density);
+        canvas.drawLine(x0, y0, x1, y1, beamPaint);
+    }
+
+    private float measureTracked(String text, float tracking, Paint paint) {
+        int n = text.length();
+        float total = 0f;
+        for (int i = 0; i < n; i++) {
+            total += paint.measureText(text, i, i + 1);
+        }
+        if (n > 1) {
+            total += tracking * (n - 1);
+        }
+        return total;
     }
 
     /** ① 黑场：从全黑淡出，露出下面的星空 */
@@ -486,8 +763,6 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
             drawPlaneSweep(canvas, t);
         }
         canvas.restore();
-
-        drawEnglishName(canvas, t, cx, cy, scale);
     }
 
     /**
@@ -512,22 +787,6 @@ public class IntroOverlayView extends View implements Choreographer.FrameCallbac
         planeWhitePaint.setAlpha((int) (170 * Math.sin(Math.PI * p)));
         canvas.drawBitmap(planeBitmap, -w / 2f, -h / 2f, planeWhitePaint);
         canvas.restore();
-    }
-
-    /** 机身下方的英文名：跟着飞机一起飞、一起缩小，起飞后淡出 */
-    private void drawEnglishName(Canvas canvas, float t, float cx, float cy, float scale) {
-        float pin = clamp01((t - T_EN) / (T_EN_END - T_EN));
-        float pout = clamp01((t - T_EN_OUT) / (T_EN_OUT_END - T_EN_OUT));
-        float alpha = easeOutCubic(pin) * (1f - pout);
-        if (alpha <= 0f || planeBitmap == null) {
-            return;
-        }
-
-        float baseline = cy + planeBitmap.getHeight() * scale * 0.5f + 34f * density;
-        float tracking = 10f * density * (1f - easeOutCubic(pin));
-
-        enPaint.setAlpha((int) (255 * alpha));
-        drawTracked(canvas, EN_NAME, cx, baseline, tracking, enPaint);
     }
 
     /**

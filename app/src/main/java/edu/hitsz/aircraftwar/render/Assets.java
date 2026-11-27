@@ -34,10 +34,9 @@ import java.util.Map;
  * <p>
  * 两个细节：
  * <ol>
- *   <li>图片放在 <b>drawable-nodpi</b> 目录。游戏精灵图绝不能被系统按屏幕密度缩放，
- *       否则同一张 100×83 的飞机在高密度屏上会被放大 2~3 倍，
- *       而核心层用图片宽高做碰撞判定，碰撞框就全错了。
- *       解码时再额外设 {@code inScaled = false} 做双保险。</li>
+ *   <li>图片放在 <b>drawable-nodpi</b> 目录，解码时 {@code inScaled = false}。
+ *       系统不能按屏幕密度改像素。飞机贴图是 3 倍清晰度，碰撞框仍用
+ *       {@link #logicalAircraftBox(Class)} 里的原始逻辑尺寸，不能改用位图像素。</li>
  *   <li>映射用 {@code instanceof} 而不是「类名 → 图片」的字符串表：
  *       Android 上 R8 可能混淆类名，靠字符串匹配在 release 包里会静默失效。</li>
  * </ol>
@@ -198,14 +197,49 @@ public final class Assets implements SpriteMetrics {
 
     // ---------------- SpriteMetrics（核心层向这里要宽高） ----------------
 
+    /**
+     * 飞机的逻辑宽高，沿用替换贴图之前的像素尺寸。
+     * 碰撞和绘制都用这组数；贴图本身可以是 3 倍清晰度，不能反过来把碰撞框放大。
+     * 子弹和道具没有重绘，仍按位图像素返回。
+     */
+    private int[] logicalAircraftBox(Class<?> type) {
+        if (HeroAircraft.class.isAssignableFrom(type)) {
+            return new int[]{100, 83};
+        }
+        if (MobEnemy.class.isAssignableFrom(type)) {
+            return new int[]{75, 50};
+        }
+        if (ElitePlusEnemy.class.isAssignableFrom(type)) {
+            return new int[]{105, 68};
+        }
+        if (EliteProEnemy.class.isAssignableFrom(type)) {
+            return new int[]{100, 83};
+        }
+        if (EliteEnemy.class.isAssignableFrom(type)) {
+            return new int[]{105, 68};
+        }
+        if (BossEnemy.class.isAssignableFrom(type)) {
+            return new int[]{300, 200};
+        }
+        return null;
+    }
+
     @Override
     public int widthOf(Class<?> type) {
+        int[] box = logicalAircraftBox(type);
+        if (box != null) {
+            return box[0];
+        }
         Bitmap bmp = bitmapForType(type);
         return bmp == null ? 32 : bmp.getWidth();
     }
 
     @Override
     public int heightOf(Class<?> type) {
+        int[] box = logicalAircraftBox(type);
+        if (box != null) {
+            return box[1];
+        }
         Bitmap bmp = bitmapForType(type);
         return bmp == null ? 32 : bmp.getHeight();
     }

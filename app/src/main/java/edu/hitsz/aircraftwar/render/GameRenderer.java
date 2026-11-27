@@ -140,9 +140,14 @@ public class GameRenderer {
             if (bmp == null) {
                 continue;
             }
-            float x = object.renderX(alpha) - bmp.getWidth() / 2f;
-            float y = object.renderY(alpha) - bmp.getHeight() / 2f;
-            canvas.drawBitmap(bmp, x, y, bitmapPaint);
+            // 绘制尺寸用逻辑碰撞框，不用贴图像素。高清图更大，缩回原尺寸后边缘才顺。
+            int drawW = object.getWidth();
+            int drawH = object.getHeight();
+            float x = object.renderX(alpha) - drawW / 2f;
+            float y = object.renderY(alpha) - drawH / 2f;
+            src.set(0, 0, bmp.getWidth(), bmp.getHeight());
+            dst.set(x, y, x + drawW, y + drawH);
+            canvas.drawBitmap(bmp, src, dst, bitmapPaint);
         }
     }
 
